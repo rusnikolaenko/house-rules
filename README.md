@@ -18,7 +18,8 @@ assets/ceremony.js    финал, окно-артефакт и календар�
 assets/ceremony.css   стили для них
 assets/heroes.js       два пиксельных героя под печатями
 backend/index.py      сервис печатей (Yandex Cloud Function, Python 3.12, без зависимостей)
-tools/make_hashes.py  делает хэши секретных слов
+tools/make_hashes.py  делает хэши секретных слов (вместе, один человек вводит оба)
+tools/make_hash.py    делает хэш одного слова по готовому salt (каждый — отдельно, своё слово)
 dev_server.py         всё вместе локально
 tests/                pytest для сервиса печатей
 ```
