@@ -3,11 +3,11 @@
     python dev_server.py
     open http://localhost:8000
 
-Seals go to seals.local.json next to this file. Secret words for local runs:
-"ruslan test" and "wonder test" (set your own with DEV_WORD_RUSLAN / DEV_WORD_WONDER).
+Seals go to seals.local.json, word hashes to words.local.json, both next to
+this file, in git it doesn't go. Nothing is pre-set — type any word the
+first time you press each seal, that becomes its secret word.
 """
 
-import json
 import os
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -18,11 +18,9 @@ import index as seals_api  # noqa: E402
 
 os.environ.setdefault("SEAL_SALT", "local-dev-salt")
 os.environ.setdefault("LOCAL_SEALS_FILE", os.path.join(ROOT, "seals.local.json"))
+os.environ.setdefault("LOCAL_WORDS_FILE", os.path.join(ROOT, "words.local.json"))
 os.environ.setdefault("WRONG_WORD_DELAY", "0.3")
 os.environ.pop("GITHUB_TOKEN", None)
-for party, default in (("RUSLAN", "ruslan test"), ("WONDER", "wonder test")):
-    word = os.environ.get("DEV_WORD_" + party, default)
-    os.environ["HASH_" + party] = seals_api.word_hash(os.environ["SEAL_SALT"], word)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -64,6 +62,5 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
-    print("House Rules on http://localhost:%d  (words: %r / %r)" % (
-        port, os.environ.get("DEV_WORD_RUSLAN", "ruslan test"), os.environ.get("DEV_WORD_WONDER", "wonder test")))
+    print("House Rules on http://localhost:%d  (type any word the first time you press each seal)" % port)
     ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()

@@ -4,26 +4,31 @@ A Yandex Cloud Function (Python 3.12, no dependencies) with two routes:
 
     GET  <function-url>            -> {"seals": {"ruslan": {...} | null, "wonder": {...} | null}}
     POST <function-url>  {"party": "wonder", "word": "..."}
+        The first word anyone sends for a party becomes that party's secret
+        word (remembered as a salted hash in WORDS_PATH) and seals right
+        away. Every later call for that party must repeat the same word.
                                    -> 200 {"seals": ...}   sealed now
                                    -> 403 {"error": "wrong_word"}
                                    -> 409 {"error": "already_sealed", "seals": ...}
 
-Seals are kept in seals.json in the site's GitHub repository, so every seal is
-also a commit. The secret words are never stored: only salted SHA-256 hashes,
-made with tools/make_hashes.py.
+Seals live in SEALS_PATH, word hashes in WORDS_PATH — both in the site's
+GitHub repository, so every seal and every word registration is a commit.
+The secret words themselves are never stored, only salted SHA-256 hashes.
 
 Environment variables:
     GITHUB_TOKEN    fine-grained token, "Contents: Read and write" on the site repo
     GITHUB_REPO     "owner/house-rules"
     GITHUB_BRANCH   branch GitHub Pages serves (default "main")
-    SEALS_PATH      file in the repo (default "seals.json")
-    SEAL_SALT       random salt from tools/make_hashes.py
-    HASH_RUSLAN     hash of Ruslan's secret word
-    HASH_WONDER     hash of the 8th Wonder's secret word
+    SEALS_PATH      seals file in the repo (default "seals.json")
+    WORDS_PATH      word-hash file in the repo (default "words.json")
+    SEAL_SALT       random salt shared by both parties — not secret itself
     ALLOWED_ORIGIN  the site's origin, e.g. "https://owner.github.io" (default "*")
 
-Without GITHUB_TOKEN the service keeps seals in a local file (LOCAL_SEALS_FILE,
-default ./seals.local.json) — that is what dev_server.py and the tests use.
+Without GITHUB_TOKEN the service keeps both files locally (LOCAL_SEALS_FILE /
+LOCAL_WORDS_FILE) — that is what dev_server.py and the tests use.
+
+To let someone pick a new word, open WORDS_PATH in the repo, set their entry
+back to null, and commit — same as resetting a seal in SEALS_PATH.
 """
 
 import base64
@@ -51,27 +56,33 @@ def word_hash(salt, word):
     return hashlib.sha256((salt + normalize(word)).encode("utf-8")).hexdigest()
 
 
-def word_matches(party, word):
-    expected = os.environ.get("HASH_" + party.upper(), "")
-    salt = os.environ.get("SEAL_SALT", "")
-    if not expected or not salt:
-        return False
-    return hmac.compare_digest(word_hash(salt, word), expected.strip().lower())
-
-
 # --------------------------------------------------------------------- stores
 
 def empty_seals():
     return {p: None for p in PARTIES}
 
 
-def clean(seals):
+def clean_seals(seals):
     out = empty_seals()
     if isinstance(seals, dict):
         for p in PARTIES:
             v = seals.get(p)
             if isinstance(v, dict) and isinstance(v.get("at"), str):
                 out[p] = {"at": v["at"]}
+    return out
+
+
+def empty_words():
+    return {p: None for p in PARTIES}
+
+
+def clean_words(words):
+    out = empty_words()
+    if isinstance(words, dict):
+        for p in PARTIES:
+            v = words.get(p)
+            if isinstance(v, str) and v:
+                out[p] = v
     return out
 
 
@@ -83,16 +94,16 @@ class LocalStore:
     def __init__(self, path):
         self.path = path
 
-    def read(self):
+    def read_raw(self):
         try:
             with open(self.path, encoding="utf-8") as f:
-                return clean(json.load(f)), None
+                return json.load(f), None
         except (FileNotFoundError, ValueError):
-            return empty_seals(), None
+            return {}, None
 
-    def write(self, seals, version, message):
+    def write(self, data, version, message):
         with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(seals, f, ensure_ascii=False, indent=2)
+            json.dump(data, f, ensure_ascii=False, indent=2)
             f.write("\n")
 
 
@@ -117,18 +128,18 @@ class GitHubStore:
     def _url(self):
         return "%s/repos/%s/contents/%s" % (self.API, self.repo, self.path)
 
-    def read(self):
+    def read_raw(self):
         try:
             doc = self._request("GET", self._url() + "?ref=" + self.branch)
         except urllib.error.HTTPError as e:
             if e.code == 404:
-                return empty_seals(), None
+                return {}, None
             raise
         raw = base64.b64decode(doc.get("content", "")).decode("utf-8") or "{}"
-        return clean(json.loads(raw)), doc.get("sha")
+        return json.loads(raw), doc.get("sha")
 
-    def write(self, seals, version, message):
-        body = json.dumps(seals, ensure_ascii=False, indent=2) + "\n"
+    def write(self, data, version, message):
+        body = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
         payload = {
             "message": message,
             "content": base64.b64encode(body.encode("utf-8")).decode("ascii"),
@@ -144,16 +155,30 @@ class GitHubStore:
             raise
 
 
-def make_store():
+def _make_store(path, local_path):
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     if token:
         return GitHubStore(
             token,
             os.environ["GITHUB_REPO"].strip(),
             os.environ.get("GITHUB_BRANCH", "main").strip() or "main",
-            os.environ.get("SEALS_PATH", "seals.json").strip() or "seals.json",
+            path,
         )
-    return LocalStore(os.environ.get("LOCAL_SEALS_FILE", "seals.local.json"))
+    return LocalStore(local_path)
+
+
+def make_seal_store():
+    return _make_store(
+        os.environ.get("SEALS_PATH", "seals.json").strip() or "seals.json",
+        os.environ.get("LOCAL_SEALS_FILE", "seals.local.json"),
+    )
+
+
+def make_word_store():
+    return _make_store(
+        os.environ.get("WORDS_PATH", "words.json").strip() or "words.json",
+        os.environ.get("LOCAL_WORDS_FILE", "words.local.json"),
+    )
 
 
 # --------------------------------------------------------------------- http
@@ -184,16 +209,43 @@ def read_body(event):
     return json.loads(body) if body else {}
 
 
-def seal(store, party, now=None):
+def check_word(word_store, party, word):
+    """True if `word` is (now, or already was) this party's secret word.
+
+    The first call for a party registers its word; every later call must
+    repeat it. Retries once on a write race, same pattern as seal().
+    """
+    salt = os.environ.get("SEAL_SALT", "")
+    if not salt:
+        return False
+    h = word_hash(salt, word)
+    for attempt in range(2):
+        raw, version = word_store.read_raw()
+        words = clean_words(raw)
+        existing = words[party]
+        if existing:
+            return hmac.compare_digest(h, existing)
+        words[party] = h
+        try:
+            word_store.write(words, version, "Set secret word: %s" % party)
+            return True
+        except Conflict:
+            if attempt:
+                raise
+    raise RuntimeError("unreachable")
+
+
+def seal(seal_store, party, now=None):
     """Write the seal; returns (status, seals). Retries once on a write race."""
     for attempt in range(2):
-        seals, version = store.read()
+        raw, version = seal_store.read_raw()
+        seals = clean_seals(raw)
         if seals[party]:
             return 409, seals
         at = (now or datetime.now(timezone.utc)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
         seals[party] = {"at": at}
         try:
-            store.write(seals, version, "Seal: %s" % party)
+            seal_store.write(seals, version, "Seal: %s" % party)
             return 200, seals
         except Conflict:
             if attempt:
@@ -201,14 +253,15 @@ def seal(store, party, now=None):
     raise RuntimeError("unreachable")
 
 
-def handler(event, context=None, store=None):
+def handler(event, context=None, seal_store=None, word_store=None):
     method = (event.get("httpMethod") or "GET").upper()
-    store = store or make_store()
+    seal_store = seal_store or make_seal_store()
+    word_store = word_store or make_word_store()
     try:
         if method == "OPTIONS":
             return respond(204)
         if method == "GET":
-            seals, _ = store.read()
+            seals = clean_seals(seal_store.read_raw()[0])
             return respond(200, {"seals": seals})
         if method != "POST":
             return respond(405, {"error": "method_not_allowed"})
@@ -221,11 +274,11 @@ def handler(event, context=None, store=None):
         word = data.get("word") if isinstance(data, dict) else None
         if party not in PARTIES or not isinstance(word, str) or not word.strip() or len(word) > MAX_WORD:
             return respond(400, {"error": "bad_request"})
-        if not word_matches(party, word):
+        if not check_word(word_store, party, word):
             time.sleep(float(os.environ.get("WRONG_WORD_DELAY", "1")))
             return respond(403, {"error": "wrong_word"})
 
-        status, seals = seal(store, party)
+        status, seals = seal(seal_store, party)
         if status == 409:
             return respond(409, {"error": "already_sealed", "seals": seals})
         return respond(200, {"seals": seals})

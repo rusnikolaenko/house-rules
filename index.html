@@ -13,6 +13,7 @@
 <link rel="preload" href="assets/fonts/PressStart2P-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/svitok.css">
 <link rel="stylesheet" href="assets/ceremony.css">
+<link rel="stylesheet" href="assets/landscape.css">
 <style>
   :root { color-scheme: dark; }
   [hidden] { display: none !important; }
@@ -68,6 +69,12 @@
 </style>
 </head>
 <body>
+<div class="hr-world" id="world" aria-hidden="true">
+  <canvas id="world-sky"></canvas>
+  <canvas id="world-clouds"></canvas>
+  <canvas id="world-land"></canvas>
+</div>
+<script src="assets/landscape.js"></script>
 <div class="sv-scroll sv-scroll--unroll" id="scroll">
   <div class="sv-roller"></div>
   <div class="sv-sheet-wrap">

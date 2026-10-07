@@ -1,4 +1,5 @@
 seals.local.json
+words.local.json
 __pycache__/
 .pytest_cache/
 .idea/

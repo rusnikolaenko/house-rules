@@ -1,0 +1,26 @@
+/* House Rules: the pixel landscape behind the scroll (drawn by landscape.js). */
+.hr-world {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.hr-world canvas {
+  position: absolute;
+  left: 0;
+  display: block;
+  image-rendering: pixelated;
+}
+#world-sky, #world-land { bottom: 0; }
+#world-clouds { top: 0; }
+.hr-world.is-ready #world-clouds {
+  animation: hr-clouds var(--cloud-time, 120s) steps(var(--cloud-steps, 300), end) infinite;
+}
+@keyframes hr-clouds {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--cloud-shift, -1200px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hr-world.is-ready #world-clouds { animation: none; }
+}
