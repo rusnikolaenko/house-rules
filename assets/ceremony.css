@@ -278,3 +278,53 @@ body.hr-modal { overflow: hidden; }
   .hr-stage.is-walking .hr-hero, .hr-stage.is-met .hr-hero,
   .hr-stage.is-met .hr-stage__heart, .hr-stage.is-met.is-hop .hr-hero { animation: none; }
 }
+
+/* ---------- rolling the scroll up ---------- */
+.sv-scroll.is-rolling-up .sv-sheet-wrap { animation: hr-roll-up 1.1s steps(18, end) forwards; }
+@keyframes hr-roll-up { from { max-height: var(--sv-h, 1600px); } to { max-height: 0; } }
+body.hr-is-rolled .sv-scroll { margin-top: max(48px, calc(40vh - 60px)); }
+body.hr-is-rolled .sv-roller { cursor: pointer; }
+
+.hr-roll.sv-btn {
+  position: fixed;
+  z-index: 30;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 14px 8px 8px;
+  font-size: 12px; line-height: 16px;
+}
+.hr-roll .sv-icon { width: 32px; height: 32px; }
+.hr-roll.sv-btn:focus-visible { outline-color: var(--gold-200); }
+
+.hr-rolled {
+  position: absolute;
+  z-index: 3;
+  left: 50%; top: 50%;
+  width: 104px; height: 104px;
+  margin: -52px 0 0 -52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.hr-rolled__ribbon {
+  position: absolute;
+  left: 40px; top: -28px;
+  width: 24px; height: 160px;
+  background: var(--wax-500);
+  box-shadow: inset 4px 0 0 0 var(--wax-300), inset -4px 0 0 0 var(--wax-700), 0 0 0 4px var(--outline);
+}
+.hr-rolled .sv-seal__stamp { position: relative; }
+.hr-rolled:focus-visible { outline: 4px solid var(--gold-200); outline-offset: 8px; }
+
+@media (max-width: 560px) {
+  .hr-roll.sv-btn { padding: 8px; }
+  .hr-roll__text { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv-scroll.is-rolling-up .sv-sheet-wrap { animation: none; }
+}

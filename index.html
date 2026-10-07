@@ -73,6 +73,7 @@
   <canvas id="world-sky"></canvas>
   <canvas id="world-clouds"></canvas>
   <canvas id="world-land"></canvas>
+  <canvas id="world-fx"></canvas>
 </div>
 <script src="assets/landscape.js"></script>
 <div class="sv-scroll sv-scroll--unroll" id="scroll">
@@ -272,7 +273,14 @@
     </div>
   </div>
   <div class="sv-roller"></div>
+  <button class="hr-rolled" type="button" id="rolled-seal" aria-label="Unroll the scroll" hidden>
+    <span class="hr-rolled__ribbon"></span>
+    <span class="sv-seal__stamp" data-state="stamped" aria-hidden="true"><span class="sv-seal__mark"></span></span>
+  </button>
 </div>
+<button class="sv-btn sv-btn--quiet hr-roll" type="button" id="roll-toggle" aria-controls="scroll" aria-expanded="true" hidden>
+  <span class="sv-icon sv-icon--32" data-icon="scroll" data-size="32"></span><span class="hr-roll__text">Roll up</span>
+</button>
 <div class="hr-banner" id="hr-banner" aria-hidden="true" hidden>
   <span class="sv-icon sv-icon--32" data-icon="heart" data-size="32"></span>
   <span>Rules ratified</span>
@@ -296,6 +304,7 @@
 </dialog>
 <script src="config.js"></script>
 <script src="assets/svitok.js"></script>
+<script src="assets/rollup.js"></script>
 <script src="assets/heroes.js"></script>
 <script src="assets/ceremony.js"></script>
 <script src="assets/house-rules.js"></script>

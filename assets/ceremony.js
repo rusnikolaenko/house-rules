@@ -285,6 +285,7 @@
     busyUntil = now + lead + (calm ? 1500 : 3800);
     lsSet(SEEN_KEY, at);
     if (window.Heroes) window.Heroes.reset();        // the heroes wait at the two edges until the pop-up is closed
+    if (window.ScrollToggle && window.ScrollToggle.isRolled()) window.ScrollToggle.unroll();
 
     window.setTimeout(function () {
       fanfare();

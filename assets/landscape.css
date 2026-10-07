@@ -12,7 +12,7 @@
   display: block;
   image-rendering: pixelated;
 }
-#world-sky, #world-land { bottom: 0; }
+#world-sky, #world-land, #world-fx { bottom: 0; }
 #world-clouds { top: 0; }
 .hr-world.is-ready #world-clouds {
   animation: hr-clouds var(--cloud-time, 120s) steps(var(--cloud-steps, 300), end) infinite;
@@ -23,4 +23,38 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .hr-world.is-ready #world-clouds { animation: none; }
+}
+
+/* On the bright landscape the scroll's solid black drop shadow read as a thicker right border.
+   A tinted, see-through shadow reads as a shadow cast on the sky and mountains instead. */
+:root { --shadow-scroll: 8px 8px 0 0 rgba(14, 8, 26, .34); }
+
+/* "Wish made": click the sky next to a shooting star */
+.hr-wish {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 8px;
+  font-family: var(--font-arcade);
+  font-size: 12px; line-height: 16px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--on-wax);
+  background: var(--wax-500);
+  box-shadow: inset 4px 4px 0 0 var(--wax-300), inset -4px -4px 0 0 var(--wax-700), 0 0 0 4px var(--outline);
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  animation: hr-wish 2.2s steps(11, end) forwards;
+}
+.hr-wish svg { display: block; width: 32px; height: 28px; image-rendering: pixelated; }
+@keyframes hr-wish {
+  0% { opacity: 0; transform: translate(-50%, -60%); }
+  10% { opacity: 1; transform: translate(-50%, -100%); }
+  75% { opacity: 1; transform: translate(-50%, -150%); }
+  100% { opacity: 0; transform: translate(-50%, -170%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hr-wish { animation: none; }
 }

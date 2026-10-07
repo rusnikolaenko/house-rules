@@ -3,8 +3,12 @@
  * The sky follows the local time: dawn 5:00–8:00, day 8:00–17:00, sunset 17:00–21:00, night 21:00–5:00.
  * Add ?sky=dawn, ?sky=day, ?sky=sunset or ?sky=night to the address to look at one of them.
  *
- * Everything is drawn at 4px per art pixel on three canvases (sky, clouds, land). The mountains and
- * trees come from a fixed seed, so the landscape stays the same between visits.
+ * The season follows the date: spring March–May, summer June–August, autumn September–November,
+ * winter December–February. Add ?season=spring|summer|autumn|winter to look at one of them.
+ *
+ * Everything is drawn at 4px per art pixel on four canvases: sky, clouds, land, and a layer of moving
+ * things (falling leaves, snow or petals, fireflies, birds, shooting stars). The mountains and trees
+ * come from a fixed seed, so the landscape stays the same between visits.
  */
 (function () {
   "use strict";
@@ -57,6 +61,20 @@
     }
   };
 
+  // Seasonal colours as they look in daylight. Other times of day tint them towards TINT.
+  // leaves: crown light, mid, dark per kind of tree. fall: what drifts down. litter: specks on the ground.
+  var SEASONS = {
+    spring: { leaves: [["#86c45c", "#64a043", "#3f6f2b"]], blossom: ["#f7b6c8", "#fde7ee"], fall: ["#f7b6c8", "#fde7ee"] },
+    summer: { leaves: [["#6aa84f", "#4f8a3a", "#335f26"]] },
+    autumn: {
+      leaves: [["#f0a03c", "#cf7424", "#8f4718"], ["#f4c84e", "#d9a02c", "#9a6a1a"], ["#dd5d3c", "#b23f29", "#742719"]],
+      fall: ["#f0a03c", "#f4c84e", "#dd5d3c", "#cf7424"],
+      litter: ["#cf7424", "#d9a02c", "#b23f29"]
+    },
+    winter: { snow: ["#f4f8fb", "#cfdcea"], bare: ["#5a3a1f", "#42230e"], fall: ["#f4f8fb", "#dfe9f2"] }
+  };
+  var TINT = { dawn: ["#6f6f9a", 0.28], day: null, sunset: ["#5b2f5e", 0.42], night: ["#0d1330", 0.72] };
+
   var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
   // ------------------------------------------------------------ helpers
@@ -95,6 +113,44 @@
     if (h < 8) return "dawn";
     if (h < 17) return "day";
     return "sunset";
+  }
+
+  function seasonFor(date) {
+    var m = /[?&]season=(spring|summer|autumn|winter)\b/.exec(window.location.search);
+    if (m) return m[1];
+    var mo = date.getMonth();
+    if (mo === 11 || mo <= 1) return "winter";
+    if (mo <= 4) return "spring";
+    if (mo <= 7) return "summer";
+    return "autumn";
+  }
+
+  function mixHex(a, b, t) {
+    var x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16), out = 0;
+    for (var sh = 16; sh >= 0; sh -= 8) {
+      var ca = (x >> sh) & 255, cb = (y >> sh) & 255;
+      out |= Math.round(ca + (cb - ca) * t) << sh;
+    }
+    return "#" + ("000000" + out.toString(16)).slice(-6);
+  }
+
+  /** The season's colours for this time of day: packed for drawing, plus hex strings for the moving layer. */
+  function compileSeason(season, phase) {
+    var src = SEASONS[season], tint = TINT[phase], ph = PHASES[phase];
+    var hex = function (h) { return tint ? mixHex(h, tint[0], tint[1]) : h; };
+    var out = { name: season };
+    out.leaves = src.leaves ? src.leaves.map(function (l) { return l.map(function (h) { return rgba(hex(h)); }); }) : null;
+    // the distant forest is hazier: halfway to the far trees' colour
+    out.backLeaves = src.leaves ? src.leaves.map(function (l) {
+      return [rgba(mixHex(hex(l[0]), ph.back[0], 0.5)), rgba(mixHex(hex(l[1]), ph.back[1], 0.5)), rgba(mixHex(hex(l[2]), ph.back[1], 0.55))];
+    }) : null;
+    out.blossom = src.blossom ? src.blossom.map(function (h) { return rgba(hex(h)); }) : null;
+    out.snow = src.snow ? src.snow.map(function (h) { return rgba(hex(h)); }) : null;
+    out.bare = src.bare ? src.bare.map(function (h) { return rgba(hex(h)); }) : null;
+    out.litter = src.litter ? src.litter.map(function (h) { return rgba(hex(h)); }) : null;
+    out.fall = src.fall ? src.fall.map(hex) : null;
+    out.farSnow = ph.far[2];
+    return out;
   }
 
   function compile(ph) {      // hex → packed colours, once per phase
@@ -256,7 +312,7 @@
   }
 
   // ------------------------------------------------------------ forest
-  function pine(s, x0, baseY, h, light, mid, dark, trunk) {
+  function pine(s, x0, baseY, h, light, mid, dark, trunk, snow) {
     var trunkH = Math.max(1, Math.round(h * 0.12));
     var crown = h - trunkH;
     var tiers = h >= 18 ? 3 : 2;
@@ -270,47 +326,94 @@
       for (var dx = -hw; dx <= hw; dx++) {
         var col = dx < 0 ? light : dx === hw ? dark : mid;
         if (lastRow && dx > -hw) col = dark;
+        if (snow && (j <= (k === 0 ? 1 : 0) || (dx === -hw && j % 2 === 0))) col = dx <= 0 ? snow[0] : snow[1];
         s.set(x0 + dx, y, col);
       }
     }
     for (var ty = baseY - trunkH; ty < baseY; ty++) s.set(x0, ty, trunk);
   }
 
-  function forestRow(s, W, H, seed, baseY, spacing, height, cols) {
+  /** A round leafy tree; bare branches with snow in winter. */
+  function leafy(s, x0, baseY, h, pal, sea, trunk) {
+    var r = Math.max(2, Math.round(h * 0.34));
+    var cy = baseY - h + r;
+    var trunkTop = cy + Math.round(r * 0.4);
+    if (sea.bare) {
+      for (var by = baseY - h + 1; by < baseY; by++) s.set(x0, by, sea.bare[0]);
+      for (var a = 0; a < 3; a++) {
+        var yy = cy - r + 2 + a * Math.max(2, Math.round(r * 0.6));
+        var len = Math.max(1, r - a);
+        for (var i = 1; i <= len; i++) {
+          s.set(x0 - i, yy - (i >> 1), sea.bare[1]);
+          s.set(x0 + i, yy - (i >> 1) - (a === 1 ? 1 : 0), sea.bare[1]);
+        }
+        s.set(x0 - len, yy - (len >> 1) - 1, sea.snow[0]);
+        s.set(x0 + len, yy - (len >> 1) - (a === 1 ? 2 : 1), sea.snow[0]);
+      }
+      s.set(x0, baseY - h, sea.snow[0]);
+      return;
+    }
+    for (var ty = trunkTop; ty < baseY; ty++) s.set(x0, ty, trunk);
+    for (var y = -r; y <= r; y++) {
+      for (var x = -r; x <= r; x++) {
+        var d = x * x + y * y;
+        if (d > r * r + r * 0.6) continue;
+        var col = x + y < -r * 0.6 ? pal[0] : x + y > r * 0.5 ? pal[2] : pal[1];
+        if (d > r * r - r && x + y > 0) col = pal[2];
+        if (sea.blossom && noise((x0 + x) * 31 + y, 7) < 0.16) col = sea.blossom[(x + y) & 1];
+        s.set(x0 + x, cy + y, col);
+      }
+    }
+  }
+
+  function forestRow(s, W, H, seed, baseY, spacing, height, cols, sea, front) {
     var rnd = seeded(seed);
     var x = -8 - Math.floor(rnd() * 6);
     while (x < W + 10) {
       var h = height[0] + Math.floor(rnd() * (height[1] - height[0]));
       var shade = rnd() < 0.3;
-      pine(s, x, baseY + Math.floor(rnd() * 2), h, shade ? cols[1] : cols[0], cols[1], cols[2], cols[3]);
+      var by = baseY + Math.floor(rnd() * 2);
+      var isLeafy = rnd() < (front ? 0.38 : 0.28);
+      var pick = rnd();
+      var leaves = front ? sea.leaves : sea.backLeaves;
+      if (isLeafy && (leaves || sea.bare)) {
+        leafy(s, x, by, h, leaves ? leaves[Math.floor(pick * leaves.length)] : null, sea, cols[3]);
+      } else {
+        pine(s, x, by, h, shade ? cols[1] : cols[0], cols[1], cols[2], cols[3], sea.snow);
+      }
       x += spacing[0] + Math.floor(rnd() * (spacing[1] - spacing[0]));
     }
   }
 
-  function drawLand(s, c, W, H) {
+  function drawLand(s, c, sea, W, H) {
+    var winter = !!sea.snow;
     var far = ridge(W, H, 11, [26, 58], [0.3, 0.48], [0.3, 0.9]);
-    drawRange(s, W, H, far, c.far, Math.round(H * 0.42));
+    drawRange(s, W, H, far, c.far, Math.round(H * (winter ? 0.52 : 0.42)));
     var near = ridge(W, H, 23, [18, 40], [0.5, 0.62], [0.2, 0.7]);
-    drawRange(s, W, H, near, c.near);
+    drawRange(s, W, H, near, winter ? [c.near[0], c.near[1], rgba(sea.farSnow)] : c.near, Math.round(H * 0.6));
 
     var backBase = Math.round(H * 0.84);
-    forestRow(s, W, H, 31, backBase, [3, 6], [7, 13], [c.back[0], c.back[1], c.back[1], c.back[1]]);
+    forestRow(s, W, H, 31, backBase, [3, 6], [7, 13], [c.back[0], c.back[1], c.back[1], c.back[1]], sea, false);
     for (var y = backBase; y < H; y++) for (var x = 0; x < W; x++) s.px[y * W + x] = c.back[1];
 
     var groundH = Math.max(4, Math.round(H * 0.045));
     var frontBase = H - groundH;
-    forestRow(s, W, H, 47, frontBase, [6, 11], [13, 25], c.front);
+    forestRow(s, W, H, 47, frontBase, [6, 11], [13, 25], c.front, sea, true);
     for (var gy = frontBase; gy < H; gy++) {
       for (var gx = 0; gx < W; gx++) {
         var top = gy === frontBase || (gy === frontBase + 1 && noise(gx, 5) < 0.4);
-        s.px[gy * W + gx] = top ? c.ground[0] : c.ground[1];
+        var col = top ? c.ground[0] : c.ground[1];
+        if (winter) col = top || noise(gx * 7 + gy, 9) < 0.7 ? sea.snow[0] : sea.snow[1];
+        else if (sea.litter && gy <= frontBase + 2 && noise(gx * 13 + gy, 4) < 0.3) col = sea.litter[(gx + gy) % sea.litter.length];
+        else if (sea.blossom && top && noise(gx, 12) < 0.12) col = sea.blossom[gx & 1];
+        s.px[gy * W + gx] = col;
       }
     }
   }
 
   // ------------------------------------------------------------ putting it on screen
   var world, skyCv, cloudCv, landCv;
-  var current = { phase: null, W: 0, H: 0, T: 0 };
+  var current = { phase: null, season: null, W: 0, H: 0, T: 0 };
   var skySurface = null, stars = [], compiled = null, twinkle = 0;
 
   function size(cv, w, h) {
@@ -324,11 +427,13 @@
   }
 
   function render(force) {
-    var phase = phaseFor(new Date());
+    var now = new Date();
+    var phase = phaseFor(now), season = seasonFor(now);
     var W = Math.ceil(window.innerWidth / PX), H = Math.ceil(window.innerHeight / PX);
-    if (!force && phase === current.phase && W === current.W && H === current.H) return;
+    if (!force && phase === current.phase && season === current.season && W === current.W && H === current.H) return;
     var phaseChanged = phase !== current.phase;
     compiled = compile(PHASES[phase]);
+    var sea = compileSeason(season, phase);
 
     size(skyCv, W, H);
     skySurface = new Surface(W, H);
@@ -348,13 +453,15 @@
 
     size(landCv, W, H);
     var land = new Surface(W, H);
-    drawLand(land, compiled, W, H);
+    drawLand(land, compiled, sea, W, H);
     landCv.getContext("2d").putImageData(land.img, 0, 0);
 
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", PHASES[phase].sky[0]);
     world.setAttribute("data-sky", phase);
-    current = { phase: phase, W: W, H: H, T: T };
+    world.setAttribute("data-season", season);
+    current = { phase: phase, season: season, W: W, H: H, T: T };
+    fxReset(sea);
   }
 
   function twinkleStars() {
@@ -369,12 +476,190 @@
     twinkle++;
   }
 
+  // ------------------------------------------------------------ moving things
+  // Falling leaves, snow or petals; fireflies on summer nights; birds by day; shooting stars at night.
+  var fx = { cv: null, ctx: null, W: 0, H: 0, t: 0, parts: [], flies: [], birds: [], star: null, trail: [], sparks: [],
+             nextBirds: 0, nextStar: 0, fall: null, season: null, phase: null, running: false };
+  var STEP = 1 / 20;
+
+  function fxPart(anywhere) {
+    var w = fx.season === "winter", a = fx.season === "autumn";
+    return {
+      x: Math.random() * fx.W,
+      y: anywhere ? Math.random() * fx.H : -3,
+      vy: w ? 4 + Math.random() * 7 : a ? 6 + Math.random() * 8 : 4 + Math.random() * 5,
+      sway: 2 + Math.random() * (w ? 3 : 6),
+      ph: Math.random() * 6.28,
+      spin: 0.8 + Math.random() * 1.6,
+      col: fx.fall[Math.floor(Math.random() * fx.fall.length)],
+      big: Math.random() < (w ? 0.1 : 0.6)
+    };
+  }
+
+  function fxReset(sea) {
+    if (!fx.cv) return;
+    fx.W = current.W; fx.H = current.H;
+    size(fx.cv, fx.W, fx.H);
+    fx.ctx = fx.cv.getContext("2d");
+    fx.season = sea.name; fx.phase = current.phase; fx.fall = sea.fall;
+    fx.parts = [];
+    var per = { autumn: 1100, winter: 420, spring: 1500 }[fx.season];
+    if (per && fx.fall) for (var i = Math.round(fx.W * fx.H / per); i > 0; i--) fx.parts.push(fxPart(true));
+    fx.flies = [];
+    if (fx.season === "summer" && (fx.phase === "night" || fx.phase === "sunset")) {
+      for (var f = Math.round(fx.W / 10); f > 0; f--) {
+        fx.flies.push({ x: Math.random() * fx.W, y: fx.H * (0.72 + Math.random() * 0.22), vx: 0, vy: 0, ph: Math.random() * 6.28, rate: 1.5 + Math.random() * 2 });
+      }
+    }
+    fx.birds = []; fx.star = null; fx.sparks = [];
+    fx.nextBirds = fx.t + 3 + Math.random() * 8;
+    fx.nextStar = fx.t + 2 + Math.random() * 5;
+    fxStart();
+  }
+
+  function spawnFlock() {
+    var fromLeft = Math.random() < 0.5, n = 3 + Math.floor(Math.random() * 3);
+    var y0 = fx.H * (0.08 + Math.random() * 0.22), speed = 16 + Math.random() * 10;
+    for (var i = 0; i < n; i++) {
+      fx.birds.push({ x: fromLeft ? -6 - i * 7 : fx.W + 6 + i * 7, y: y0 + (i % 2 ? 3 : 0) + i, vx: fromLeft ? speed : -speed, ph: Math.random() * 6.28 });
+    }
+  }
+
+  function spawnStar() {
+    var dir = Math.random() < 0.5 ? -1 : 1;
+    fx.star = { x: fx.W * (0.15 + Math.random() * 0.7), y: fx.H * (0.04 + Math.random() * 0.22), vx: dir * (60 + Math.random() * 30), vy: 26 + Math.random() * 14, life: 0.9 };
+  }
+
+  function fxStep() {
+    fx.t += STEP;
+    var i, p;
+    for (i = 0; i < fx.parts.length; i++) {
+      p = fx.parts[i];
+      p.y += p.vy * STEP; p.ph += p.spin * STEP;
+      if (p.y > fx.H + 2) fx.parts[i] = fxPart(false);
+    }
+    for (i = 0; i < fx.flies.length; i++) {
+      p = fx.flies[i];
+      p.vx += (Math.random() - 0.5) * 6 * STEP; p.vy += (Math.random() - 0.5) * 6 * STEP;
+      p.vx *= 0.96; p.vy *= 0.96;
+      p.x = (p.x + p.vx * STEP + fx.W) % fx.W;
+      p.y = Math.min(fx.H - 3, Math.max(fx.H * 0.68, p.y + p.vy * STEP));
+    }
+    if (fx.phase !== "night" && fx.t > fx.nextBirds) { spawnFlock(); fx.nextBirds = fx.t + 18 + Math.random() * 22; }
+    for (i = fx.birds.length - 1; i >= 0; i--) {
+      p = fx.birds[i];
+      p.x += p.vx * STEP; p.ph += STEP * 9;
+      if (p.x < -40 || p.x > fx.W + 40) fx.birds.splice(i, 1);
+    }
+    if (fx.phase === "night" && !fx.star && fx.t > fx.nextStar) spawnStar();
+    if (fx.star) {
+      var st = fx.star;
+      st.x += st.vx * STEP; st.y += st.vy * STEP; st.life -= STEP;
+      fx.trail.unshift({ x: st.x, y: st.y, t: fx.t });
+      if (st.life <= 0) { fx.star = null; fx.nextStar = fx.t + 6 + Math.random() * 8; }
+    }
+    while (fx.trail.length && fx.t - fx.trail[fx.trail.length - 1].t > 0.8) fx.trail.pop();
+    for (i = fx.sparks.length - 1; i >= 0; i--) {
+      p = fx.sparks[i];
+      p.x += p.vx * STEP; p.y += p.vy * STEP; p.vy += 30 * STEP; p.life -= STEP;
+      if (p.life <= 0) fx.sparks.splice(i, 1);
+    }
+  }
+
+  var BIRD = [[[-2, -1], [-1, 0], [0, 1], [1, 0], [2, -1]], [[-2, 0], [-1, 0], [0, 1], [1, 0], [2, 0]]];
+  var BIRD_COLOR = { dawn: "#3d3a5c", day: "#2a3550", sunset: "#2a1830", night: "#0d1330" };
+  var TRAIL = ["#ffffff", "#f4e6bf", "#e3d6b0", "#b9c3dd", "#8f9bc0", "#5a6390"];
+
+  function fxDraw() {
+    var g = fx.ctx, i, p;
+    g.clearRect(0, 0, fx.W, fx.H);
+    for (i = 0; i < fx.parts.length; i++) {
+      p = fx.parts[i];
+      var x = Math.round(p.x + Math.sin(p.ph) * p.sway), y = Math.round(p.y);
+      g.fillStyle = p.col;
+      g.fillRect(x, y, 1, 1);
+      if (p.big) {
+        if (fx.season === "winter") { g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3); }
+        else if (Math.sin(p.ph * 2) > 0) g.fillRect(x + 1, y, 1, 1);
+        else g.fillRect(x, y + 1, 1, 1);
+      }
+    }
+    for (i = 0; i < fx.flies.length; i++) {
+      p = fx.flies[i];
+      if (Math.sin(fx.t * p.rate + p.ph) > 0.35) { g.fillStyle = "#f2f58a"; g.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+    }
+    g.fillStyle = BIRD_COLOR[fx.phase] || "#2a3550";
+    for (i = 0; i < fx.birds.length; i++) {
+      p = fx.birds[i];
+      var shape = BIRD[Math.floor(p.ph) % 2], by = Math.round(p.y + Math.sin(p.ph * 0.3));
+      for (var k = 0; k < shape.length; k++) g.fillRect(Math.round(p.x) + shape[k][0], by + shape[k][1], 1, 1);
+    }
+    if (fx.star) {
+      for (i = Math.min(fx.trail.length, TRAIL.length) - 1; i >= 0; i--) {
+        g.fillStyle = TRAIL[i];
+        g.fillRect(Math.round(fx.trail[i].x), Math.round(fx.trail[i].y), 1, 1);
+      }
+    }
+    for (i = 0; i < fx.sparks.length; i++) {
+      p = fx.sparks[i];
+      g.fillStyle = p.col;
+      g.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    }
+  }
+
+  function fxStart() {
+    if (fx.running || reducedMotion()) return;
+    fx.running = true;
+    var last = null, acc = 0;
+    function frame(now) {
+      if (last === null) last = now;
+      acc += Math.min(0.25, (now - last) / 1000);
+      last = now;
+      var stepped = false;
+      while (acc >= STEP) { acc -= STEP; fxStep(); stepped = true; }
+      if (stepped) fxDraw();
+      window.requestAnimationFrame(frame);
+    }
+    window.requestAnimationFrame(frame);
+  }
+
+  // Click the sky next to a shooting star to make a wish.
+  function wish(clientX, clientY, ax, ay) {
+    fx.star = null;
+    fx.trail = [];
+    fx.nextStar = fx.t + 5 + Math.random() * 6;
+    for (var i = 0; i < 14; i++) {
+      var a = Math.random() * 6.28, v = 8 + Math.random() * 14;
+      fx.sparks.push({ x: ax, y: ay, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 6, life: 0.6 + Math.random() * 0.5, col: i % 3 ? "#f6d36b" : "#ffffff" });
+    }
+    var el = document.createElement("div");
+    el.className = "hr-wish";
+    el.setAttribute("role", "status");
+    el.innerHTML = '<span aria-hidden="true">' + (window.Svitok ? window.Svitok.emblem("heart") : "") + "</span><span>Wish made</span>";
+    el.style.left = Math.min(window.innerWidth - 110, Math.max(110, clientX)) + "px";
+    el.style.top = clientY + "px";
+    document.body.appendChild(el);
+    window.setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2200);
+  }
+
+  function onClick(e) {
+    if (!fx.cv || reducedMotion() || !fx.trail.length) return;
+    if (e.target !== document.body && e.target !== document.documentElement) return;
+    var top = window.innerHeight - fx.H * PX;     // the canvases sit on the bottom edge
+    var ax = e.clientX / PX, ay = (e.clientY - top) / PX;
+    for (var i = 0; i < fx.trail.length; i++) {
+      var p = fx.trail[i], dx = p.x - ax, dy = p.y - ay;
+      if (fx.t - p.t < 0.6 && dx * dx + dy * dy < 100) { wish(e.clientX, e.clientY, ax, ay); return; }
+    }
+  }
+
   function init() {
     world = document.getElementById("world");
     if (!world || typeof ImageData === "undefined") return;
     skyCv = document.getElementById("world-sky");
     cloudCv = document.getElementById("world-clouds");
     landCv = document.getElementById("world-land");
+    fx.cv = document.getElementById("world-fx");
     try { render(true); } catch (e) { world.hidden = true; return; }
     world.classList.add("is-ready");
 
@@ -383,10 +668,23 @@
       window.clearTimeout(timer);
       timer = window.setTimeout(function () { render(false); }, 150);
     });
-    window.setInterval(function () { render(false); }, 60000);   // dawn, day, sunset, night
+    window.setInterval(function () { render(false); }, 60000);   // time of day and season
     window.setInterval(twinkleStars, 450);
+    document.addEventListener("click", onClick);
   }
   init();
 
-  window.Landscape = { render: function () { render(true); }, phaseFor: phaseFor, phases: PHASES };
+  window.Landscape = {
+    render: function () { render(true); },
+    phaseFor: phaseFor,
+    seasonFor: seasonFor,
+    phases: PHASES,
+    seasons: SEASONS,
+    // for testing: make something happen now
+    debug: {
+      flock: function () { spawnFlock(); },
+      star: function () { spawnStar(); return fx.star; },
+      state: function () { return { t: fx.t, parts: fx.parts.length, flies: fx.flies.length, birds: fx.birds.length, star: fx.star, trail: fx.trail.length, sparks: fx.sparks.length, H: fx.H, running: fx.running }; }
+    }
+  };
 })();
