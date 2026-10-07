@@ -219,9 +219,17 @@
   var state = "met";          // "met" (standing together), "apart" (waiting at the edges), "walking"
 
   function setState(next) {
+    var before = state;
     state = next;
     stage.classList.toggle("is-met", next === "met");
     stage.classList.toggle("is-walking", next === "walking");
+    // Others (the dragon) can watch the story: they set off, and then they meet.
+    if (next === "walking") announce("heroes:walk");
+    else if (next === "met" && before === "walking") announce("heroes:met");
+  }
+
+  function announce(name) {
+    try { stage.dispatchEvent(new CustomEvent(name, { bubbles: true })); } catch (e) { /* very old browser: no show */ }
   }
 
   /** Put the heroes at the two edges of the stage, standing and waiting. */

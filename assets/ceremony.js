@@ -131,6 +131,55 @@
     return true;
   }
 
+  /** A friendly dragon roar for dragon.js: two growly saw waves sliding down, and a rush of breath. */
+  function roar() {
+    if (!soundOn() || !audio || audio.state !== "running") return false;
+    var t0 = audio.currentTime + 0.02, len = 0.75;
+    var out = audio.createGain();
+    out.gain.setValueAtTime(0.0001, t0);
+    out.gain.linearRampToValueAtTime(0.1, t0 + 0.07);
+    out.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+    var tone = audio.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.setValueAtTime(1400, t0);
+    tone.frequency.exponentialRampToValueAtTime(260, t0 + len);
+    tone.connect(out);
+    out.connect(audio.destination);
+
+    var wobble = audio.createOscillator();           // a fast wobble makes the growl
+    var wobbleDepth = audio.createGain();
+    wobble.frequency.value = 26;
+    wobbleDepth.gain.value = 14;
+    wobble.connect(wobbleDepth);
+    wobble.start(t0);
+    wobble.stop(t0 + len + 0.02);
+
+    [0, 9].forEach(function (cents) {
+      var osc = audio.createOscillator();
+      osc.type = "sawtooth";
+      osc.detune.value = cents * 10;
+      osc.frequency.setValueAtTime(240, t0);
+      osc.frequency.exponentialRampToValueAtTime(70, t0 + len);
+      wobbleDepth.connect(osc.frequency);
+      osc.connect(tone);
+      osc.start(t0);
+      osc.stop(t0 + len + 0.02);
+    });
+
+    var frames = Math.floor(audio.sampleRate * 0.5);
+    var buffer = audio.createBuffer(1, frames, audio.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+    var breath = audio.createBufferSource();
+    var breathGain = audio.createGain();
+    breath.buffer = buffer;
+    breathGain.gain.value = 0.05;
+    breath.connect(breathGain);
+    breathGain.connect(tone);
+    breath.start(t0);
+    return true;
+  }
+
   // ------------------------------------------------------------ confetti: 4px art pixels on a small canvas
   var SPRITES = {
     heart: [".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."],
@@ -384,5 +433,5 @@
   }
   init();
 
-  window.Ceremony = { update: update, describe: describe, reignDays: reignDays, fanfare: fanfare, weeks: WEEKS };
+  window.Ceremony = { update: update, describe: describe, reignDays: reignDays, fanfare: fanfare, roar: roar, weeks: WEEKS };
 })();

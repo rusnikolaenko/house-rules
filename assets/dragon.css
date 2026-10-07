@@ -1,0 +1,51 @@
+/* House Rules: the little dragon that flies over the heroes (see dragon.js). */
+.hr-dragon {
+  position: fixed;
+  left: 0; top: 0;
+  z-index: 40;
+  width: 104px; height: 88px;
+  cursor: pointer;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+.hr-dragon__body {
+  position: absolute;
+  left: 0; top: 0;
+  width: 104px; height: 88px;
+  background-repeat: no-repeat;
+  background-size: 624px 88px;
+  background-position: 0 0;
+  image-rendering: pixelated;
+}
+.hr-dragon__fire {
+  position: absolute;
+  left: 96px; top: 32px;
+  width: 56px; height: 32px;
+  display: none;
+  background-repeat: no-repeat;
+  background-size: 168px 32px;
+  background-position: 0 0;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.hr-dragon.is-breathing .hr-dragon__fire { display: block; }
+
+.hr-dragon.is-looping .hr-dragon__body { animation: hr-dragon-loop .8s steps(8, end) 1; }
+@keyframes hr-dragon-loop { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+
+.hr-dragon-shadow {
+  position: fixed;
+  left: 0; top: 0;
+  z-index: 39;
+  width: 64px; height: 16px;
+  display: none;
+  background-repeat: no-repeat;
+  background-size: 64px 16px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hr-dragon, .hr-dragon-shadow { display: none; }
+}
