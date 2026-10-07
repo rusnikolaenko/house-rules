@@ -1,0 +1,123 @@
+# House Rules — пиксельный свиток
+
+Свиток с правилами, который открывается по обычной ссылке. Внизу две печати. Каждый ставит свою со своего телефона и вводит своё секретное слово. Когда стоят обе печати, свиток пишет «In force since…».
+
+Как это устроено:
+
+- **Сайт** — статичные файлы на GitHub Pages.
+- **Печати** хранятся в `seals.json` в этом же репозитории. Каждая поставленная печать — отдельный коммит.
+- **Сервис печатей** — маленькая функция в Yandex Cloud: проверяет секретное слово и записывает печать в `seals.json` через GitHub API. Yandex выбран потому, что Cloudflare и сервисы за ним (Supabase и т. п.) из России сейчас работают нестабильно.
+
+```
+index.html            свиток
+config.js             адрес сервиса печатей (вставить после шага 4)
+seals.json            печати; null = не поставлена
+assets/               стиль «Свиток»: svitok.css, svitok.js, шрифты, иконка вкладки
+assets/house-rules.js логика печатей на странице
+backend/index.py      сервис печатей (Yandex Cloud Function, Python 3.12, без зависимостей)
+tools/make_hashes.py  делает хэши секретных слов
+dev_server.py         всё вместе локально
+tests/                pytest для сервиса печатей
+```
+
+## Перед началом
+
+Репозиторий для GitHub Pages на бесплатном плане должен быть **публичным**. Значит, текст правил будет виден всем, кто найдёт репозиторий или сайт. Секретные слова при этом нигде не хранятся, только их хэши в настройках функции. Если правила должны остаться приватными, нужен GitHub Pro (Pages из приватного репозитория) или другой хостинг.
+
+## 1. Секретные слова
+
+Каждый придумывает своё слово или короткую фразу, от 6 символов. Регистр и лишние пробелы не важны.
+
+```bash
+python3 tools/make_hashes.py
+```
+
+Скрипт по очереди спросит слово для Ruslan и для 8th Wonder (на экране оно не видно) и напечатает три строки: `SEAL_SALT`, `HASH_RUSLAN`, `HASH_WONDER`. Сохраните их до шага 4. Сами слова не записываются никуда.
+
+## 2. Репозиторий и GitHub Pages
+
+```bash
+cd house-rules
+git init -b main
+git add .
+git commit -m "House Rules"
+git remote add origin https://github.com/<ваш-ник>/house-rules.git
+git push -u origin main
+```
+
+Сначала создайте пустой публичный репозиторий `house-rules` на github.com, потом выполните команды.
+
+Дальше на GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, папка `/ (root)` → Save**. Через минуту-две свиток откроется по адресу `https://<ваш-ник>.github.io/house-rules/`. Печати пока только для чтения.
+
+## 3. Токен GitHub для сервиса печатей
+
+**github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**:
+
+- **Repository access:** Only select repositories → `house-rules`;
+- **Permissions → Repository permissions → Contents:** Read and write;
+- **Expiration:** на ваш вкус. Когда срок истечёт, печати перестанут ставиться, и токен нужно будет перевыпустить.
+
+Скопируйте токен (`github_pat_…`). Он нужен только функции, в сайт его не вставляйте.
+
+## 4. Функция в Yandex Cloud
+
+1. Зайдите в [console.yandex.cloud](https://console.yandex.cloud). Для бесплатного объёма нужен платёжный аккаунт. Бесплатно — 1 000 000 вызовов в месяц, свиток израсходует единицы.
+2. **Cloud Functions → Создать функцию**, имя `house-rules-seals`.
+3. **Редактор → Python 3.12 → Способ: редактор кода**. Создайте файл `index.py` и вставьте содержимое `backend/index.py`.
+4. Параметры:
+   - **Точка входа:** `index.handler`
+   - **Таймаут:** 10 секунд
+   - **Память:** 128 МБ
+   - **Переменные окружения:**
+
+| Переменная | Значение |
+| --- | --- |
+| `GITHUB_TOKEN` | токен из шага 3 |
+| `GITHUB_REPO` | `<ваш-ник>/house-rules` |
+| `GITHUB_BRANCH` | `main` |
+| `SEAL_SALT` | из шага 1 |
+| `HASH_RUSLAN` | из шага 1 |
+| `HASH_WONDER` | из шага 1 |
+| `ALLOWED_ORIGIN` | `https://<ваш-ник>.github.io` |
+
+5. **Сохранить изменения** (создаётся версия).
+6. На странице функции, в «Обзоре», включите **Публичная функция** и скопируйте ссылку вида `https://functions.yandexcloud.net/d4e…`.
+
+Проверка: откройте эту ссылку в браузере. Должно показать `{"seals": {"ruslan": null, "wonder": null}}`.
+
+Токен надёжнее положить в Yandex Lockbox и подключить к функции как секрет. Для двух печатей хватит и обычной переменной.
+
+## 5. Включить печати на сайте
+
+Вставьте ссылку на функцию в `config.js`:
+
+```js
+window.HOUSE_RULES_CONFIG = {
+  api: "https://functions.yandexcloud.net/d4e…"
+};
+```
+
+Затем:
+
+```bash
+git commit -am "Connect the seal service"
+git push
+```
+
+Через минуту откройте сайт, нажмите на свою печать и введите своё слово. Ссылку отправьте второй стороне. Её печать появится у вас сама, страница проверяет печати раз в 20 секунд.
+
+## Если что-то пошло не так
+
+- **«That's not the secret word».** Слово не совпало с хэшем. Проверьте, что в `HASH_…` нет лишних пробелов. В крайнем случае заново запустите `make_hashes.py` и замените все три значения.
+- **«The seal service didn't answer».** Посмотрите **Логи** функции в Yandex Cloud. Чаще всего причина — неверный `GITHUB_REPO` или токен без доступа Contents: Read and write.
+- **Снять печать.** Откройте `seals.json` в репозитории на GitHub, замените значение на `null` и закоммитьте. Со страницы печать не снимается, так и задумано.
+- **Изменить правила.** Правьте текст в `index.html` и пушьте.
+
+## Локально
+
+```bash
+python3 dev_server.py        # http://localhost:8000, слова: "ruslan test" и "wonder test"
+pip install pytest && python3 -m pytest -q
+```
+
+Локальный сервер хранит печати в `seals.local.json`, в git он не попадает.

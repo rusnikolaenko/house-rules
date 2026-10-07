@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>House Rules</title>
+<meta name="description" content="Fifteen house rules, agreed upon by both parties and sealed in wax.">
+<meta property="og:title" content="House Rules">
+<meta property="og:description" content="Fifteen house rules, agreed upon by both parties and sealed in wax.">
+<meta name="theme-color" content="#1f1813">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/PixelifySans-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/PressStart2P-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/svitok.css">
+<style>
+  :root { color-scheme: dark; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    padding-block: max(48px, env(safe-area-inset-top)) max(64px, env(safe-area-inset-bottom));
+    background-color: var(--night-900);
+    background-image: repeating-conic-gradient(var(--night-800) 0 25%, transparent 0 50%);
+    background-size: 8px 8px;
+    color: var(--parchment-50);
+    font-family: var(--font-pixel);
+    font-size: 20px; line-height: 28px;
+  }
+  .hr-preamble { margin: 28px 0 0; font-size: 20px; line-height: 28px; color: var(--ink); text-wrap: pretty; }
+  .hr-preamble::after { content: ""; display: block; clear: both; }
+  .hr-sign { text-align: center; }
+  .hr-sign h2 { margin: 0; font-weight: 700; font-size: 32px; line-height: 40px; color: var(--ink); text-wrap: balance; }
+  .hr-status { margin: 8px 0 0; font-size: 16px; line-height: 24px; color: var(--ink-soft); }
+  .hr-status[data-in-force="true"] { color: var(--wax-500); font-weight: 600; }
+  .hr-sign .sv-seals { margin-top: 32px; }
+  .sv-seal__stamp[aria-disabled="true"] { cursor: default; }
+  .sv-rule > div { min-width: 0; }
+  .hr-note { margin: 24px 0 0; font-size: 16px; line-height: 24px; color: var(--ink-soft); text-align: center; }
+
+  .hr-form {
+    display: grid;
+    gap: 12px;
+    justify-items: center;
+    max-width: 360px;
+    margin: 32px auto 0;
+    padding: 20px;
+    background: var(--parchment-50);
+    box-shadow:
+      inset -4px -4px 0 0 var(--parchment-200),
+      0 -4px 0 0 var(--outline), 0 4px 0 0 var(--outline), -4px 0 0 0 var(--outline), 4px 0 0 0 var(--outline);
+  }
+  .hr-form h3 { margin: 0; font-weight: 700; font-size: 22px; line-height: 28px; color: var(--ink); }
+  .hr-form label { font-size: 16px; line-height: 24px; color: var(--ink-soft); }
+  .hr-form input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 0;
+    font: 400 20px/28px var(--font-pixel);
+    color: var(--ink);
+    background: var(--parchment-100);
+    box-shadow: inset 4px 4px 0 0 var(--parchment-200), 0 0 0 4px var(--outline);
+  }
+  .hr-form input:focus { outline: 4px solid var(--focus-ring); outline-offset: 4px; }
+  .hr-form .hr-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 4px; }
+  .hr-error { margin: 0; min-height: 24px; font-size: 16px; line-height: 24px; color: var(--wax-500); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="sv-scroll sv-scroll--unroll" id="scroll">
+  <div class="sv-roller"></div>
+  <div class="sv-sheet-wrap">
+    <div class="sv-sheet">
+      <div class="sv-sheet__inner">
+        <header class="sv-heading">
+          <p class="sv-kicker">Hereby enacted</p>
+          <h1 class="sv-title">House Rules</h1>
+          <p class="sv-subtitle">Agreed upon by both parties · 17 September 2026</p>
+        </header>
+        <p class="hr-preamble"><span class="sv-dropcap">T</span>hese rules bind the two parties sealed below and take effect once both seals are set.</p>
+        <hr class="sv-divider">
+        <ol class="sv-rules">
+          <li class="sv-rule" id="rule-1">
+            <div class="sv-slot"><span class="sv-icon" data-icon="heart"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #1</p>
+              <p class="sv-rule__lead">Your happiness is the top priority.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-2">
+            <div class="sv-slot"><span class="sv-icon" data-icon="crown"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #2</p>
+              <p class="sv-rule__lead">You’re always right.</p>
+              <p class="sv-rule__text">Even when you’re wrong, see Rule #2.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-3">
+            <div class="sv-slot"><span class="sv-icon" data-icon="sauna"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #3</p>
+              <p class="sv-rule__lead">All post-sauna inspections must be conducted in person.</p>
+              <p class="sv-rule__text">Hands-on, of course 😏</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-4">
+            <div class="sv-slot"><span class="sv-icon" data-icon="kiss"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #4</p>
+              <p class="sv-rule__lead">Kissing is mandatory.</p>
+              <p class="sv-rule__text">Frequency shall be determined by mutual enthusiasm but preferably excessive.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-5">
+            <div class="sv-slot"><span class="sv-icon" data-icon="tunic"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #5</p>
+              <p class="sv-rule__lead">Clothes are optional when circumstances permit.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-6">
+            <div class="sv-slot"><span class="sv-icon" data-icon="swords"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #6</p>
+              <p class="sv-rule__lead">Any argument may be resolved through excessive touching and kissing.</p>
+              <p class="sv-rule__text">Further escalation is necessary and highly encouraged.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-7">
+            <div class="sv-slot"><span class="sv-icon" data-icon="hearts"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #7</p>
+              <p class="sv-rule__lead">Cuddling is compulsory.</p>
+              <p class="sv-rule__text">Personal space may be temporarily suspended.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-8">
+            <div class="sv-slot"><span class="sv-icon" data-icon="tub"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #8</p>
+              <p class="sv-rule__lead">Showering together is strongly encouraged for reasons that remain classified.</p>
+              <p class="sv-rule__text">Towels are negotiable.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-9">
+            <div class="sv-slot"><span class="sv-icon" data-icon="moon"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #9</p>
+              <p class="sv-rule__lead">Bedtime is flexible.</p>
+              <p class="sv-rule__text">Bedroom cardio is never flexible. Late-night activities may result in sleep deprivation. Management accepts no liability.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-10">
+            <div class="sv-slot"><span class="sv-icon" data-icon="candle"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #10</p>
+              <p class="sv-rule__lead">If one party wakes the other for reasons unrelated to sleep, the request shall be considered valid and shall never be declined.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-11">
+            <div class="sv-slot"><span class="sv-icon" data-icon="sun"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #11</p>
+              <p class="sv-rule__lead">Morning cuddles and kisses are mandatory.</p>
+              <p class="sv-rule__text">Getting out of bed before them requires special authorization.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-12">
+            <div class="sv-slot"><span class="sv-icon" data-icon="key"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #12</p>
+              <p class="sv-rule__lead">If the door is locked assume a very important meeting is in progress.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-13">
+            <div class="sv-slot"><span class="sv-icon" data-icon="shield"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #13</p>
+              <p class="sv-rule__lead">Privacy is respected.</p>
+              <p class="sv-rule__text">Unless both parties decide that privacy is overrated.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-14">
+            <div class="sv-slot"><span class="sv-icon" data-icon="gavel"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #14</p>
+              <p class="sv-rule__lead">Repeated violations of these rules may result in disciplinary action.</p>
+              <p class="sv-rule__text">Disciplinary procedures are confidential and conducted behind closed doors.</p>
+            </div>
+          </li>
+          <li class="sv-rule" id="rule-15">
+            <div class="sv-slot"><span class="sv-icon" data-icon="bed"></span></div>
+            <div>
+              <p class="sv-rule__num">Rule #15</p>
+              <p class="sv-rule__lead">All disciplinary hearings shall be held in the bedroom.</p>
+              <p class="sv-rule__text">Both parties must be present. Appeals may be submitted in the form of kisses, preferably in person</p>
+            </div>
+          </li>
+        </ol>
+        <hr class="sv-divider">
+        <section class="hr-sign" aria-labelledby="sign-title">
+          <h2 id="sign-title">Signed &amp; Sealed</h2>
+          <p class="hr-status" id="status" aria-live="polite">Checking the seals…</p>
+          <div class="sv-seals">
+            <figure class="sv-seal">
+              <button class="sv-seal__stamp" data-state="empty" type="button" id="seal-ruslan" aria-label="Press to seal as Ruslan">
+                <span class="sv-seal__hint" aria-hidden="true">Press<br>to seal</span>
+                <span class="sv-seal__mark" aria-hidden="true"></span>
+              </button>
+              <figcaption>
+                <p class="sv-seal__name">Ruslan</p>
+                <p class="sv-seal__date" id="date-ruslan">…</p>
+              </figcaption>
+            </figure>
+            <figure class="sv-seal">
+              <button class="sv-seal__stamp" data-state="empty" type="button" id="seal-wonder" aria-label="Press to seal as 8th Wonder">
+                <span class="sv-seal__hint" aria-hidden="true">Press<br>to seal</span>
+                <span class="sv-seal__mark" aria-hidden="true"></span>
+              </button>
+              <figcaption>
+                <p class="sv-seal__name">8th Wonder</p>
+                <p class="sv-seal__date" id="date-wonder">…</p>
+              </figcaption>
+            </figure>
+          </div>
+          <form class="hr-form" id="seal-form" hidden>
+            <h3 id="form-title">Sealing as Ruslan</h3>
+            <label for="word">Your secret word</label>
+            <input id="word" name="word" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="200" required>
+            <div class="hr-actions">
+              <button class="sv-btn" type="submit" id="seal-submit">Seal it</button>
+              <button class="sv-btn sv-btn--quiet" type="button" id="seal-cancel">Cancel</button>
+            </div>
+            <p class="hr-error" id="form-error" role="alert"></p>
+          </form>
+          <p class="hr-note" id="note" hidden></p>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="sv-roller"></div>
+</div>
+<script src="config.js"></script>
+<script src="assets/svitok.js"></script>
+<script src="assets/house-rules.js"></script>
+</body>
+</html>
