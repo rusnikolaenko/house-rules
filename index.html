@@ -12,6 +12,7 @@
 <link rel="preload" href="assets/fonts/PixelifySans-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/PressStart2P-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/svitok.css">
+<link rel="stylesheet" href="assets/ceremony.css">
 <style>
   :root { color-scheme: dark; }
   [hidden] { display: none !important; }
@@ -223,6 +224,31 @@
               </figcaption>
             </figure>
           </div>
+          <div class="hr-reign" id="reign" hidden>
+            <div class="hr-stage is-met" id="stage" aria-hidden="true">
+              <span class="sv-icon sv-icon--32 hr-stage__heart" data-icon="heart" data-size="32"></span>
+              <div class="hr-hero hr-hero--him" id="hero-him"></div>
+              <div class="hr-hero hr-hero--her" id="hero-her"></div>
+              <div class="hr-stage__ground"></div>
+            </div>
+            <div class="hr-cal">
+              <dl class="hr-cal__dials" aria-label="Reign calendar">
+                <div class="hr-dial"><dt>Month</dt><dd id="cal-month">1</dd></div>
+                <div class="hr-dial"><dt>Week</dt><dd id="cal-week">1</dd></div>
+                <div class="hr-dial"><dt>Day</dt><dd id="cal-day">1</dd></div>
+              </dl>
+              <p class="hr-cal__kicker">Astrologers proclaim</p>
+              <p class="hr-cal__name" id="cal-name"></p>
+              <p class="hr-cal__effect" id="cal-effect"></p>
+              <p class="hr-cal__note" id="cal-note" hidden></p>
+              <p class="hr-cal__total" id="cal-total"></p>
+            </div>
+            <div class="hr-reign__actions">
+              <button class="sv-btn sv-btn--quiet" type="button" id="artifact-open">Artifact</button>
+              <button class="sv-btn sv-btn--quiet" type="button" id="ceremony-replay">Replay</button>
+              <button class="sv-btn sv-btn--quiet" type="button" id="sound-toggle" role="switch" aria-checked="true">Sound: on</button>
+            </div>
+          </div>
           <form class="hr-form" id="seal-form" hidden>
             <h3 id="form-title">Sealing as Ruslan</h3>
             <label for="word">Your secret word</label>
@@ -240,8 +266,31 @@
   </div>
   <div class="sv-roller"></div>
 </div>
+<div class="hr-banner" id="hr-banner" aria-hidden="true" hidden>
+  <span class="sv-icon sv-icon--32" data-icon="heart" data-size="32"></span>
+  <span>Rules ratified</span>
+  <span class="sv-icon sv-icon--32" data-icon="heart" data-size="32"></span>
+</div>
+<dialog class="hr-dialog" id="artifact" aria-labelledby="artifact-title" aria-describedby="artifact-text">
+  <form class="hr-dialog__frame" method="dialog">
+    <p class="hr-dialog__kicker">Artifact acquired</p>
+    <div class="hr-dialog__icon"><span class="sv-icon" data-icon="scroll" data-size="64"></span></div>
+    <h2 class="hr-dialog__title" id="artifact-title">Pact of Eternal Happiness</h2>
+    <p class="hr-dialog__text" id="artifact-text">Both seals are set. The fifteen rules now bind you both.</p>
+    <ul class="hr-bonus">
+      <li><span class="sv-icon sv-icon--32" data-icon="heart" data-size="32"></span><span>Happiness</span><b>+MAX</b></li>
+      <li><span class="sv-icon sv-icon--32" data-icon="crown" data-size="32"></span><span>Being right</span><b>+100%</b></li>
+      <li><span class="sv-icon sv-icon--32" data-icon="kiss" data-size="32"></span><span>Kisses</span><b>+99</b></li>
+      <li><span class="sv-icon sv-icon--32" data-icon="hearts" data-size="32"></span><span>Cuddles</span><b>+99</b></li>
+    </ul>
+    <p class="hr-dialog__effect">Effect: permanent.</p>
+    <button class="sv-btn" value="ok" autofocus>OK</button>
+  </form>
+</dialog>
 <script src="config.js"></script>
 <script src="assets/svitok.js"></script>
+<script src="assets/heroes.js"></script>
+<script src="assets/ceremony.js"></script>
 <script src="assets/house-rules.js"></script>
 </body>
 </html>

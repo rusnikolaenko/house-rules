@@ -65,6 +65,10 @@
     st.textContent = !loaded ? "Checking the seals…"
       : set === 2 ? "In force since " + fmt(latest)
       : set === 1 ? "Awaiting one more seal" : "Awaiting both seals";
+    // The ceremony, the artifact and the reign calendar live in ceremony.js.
+    if (window.Ceremony) {
+      window.Ceremony.update({ inForce: set === 2, at: set === 2 ? latest : null, live: set === 2 && !!animateId });
+    }
   }
 
   function apply(seals, allowAnimation) {
