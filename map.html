@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Our Map · House Rules</title>
+<meta name="description" content="Our places, on a pixel map of the whole world.">
+<meta name="theme-color" content="#1f1813">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/PixelifySans-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/PressStart2P-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/vendor/maplibre/maplibre-gl.css">
+<link rel="stylesheet" href="assets/svitok.css">
+<link rel="stylesheet" href="assets/map.css">
+</head>
+<body class="hr-map-page">
+<main class="hr-map" id="map" aria-label="A pixel map of the world with our places"></main>
+
+<header class="hr-map__bar">
+  <a class="sv-btn sv-btn--quiet" href="./">&lsaquo; Rules</a>
+  <div class="hr-map__title">
+    <h1>Our Map</h1>
+    <p id="map-stats">&nbsp;</p>
+  </div>
+</header>
+
+<nav class="hr-map__tools" aria-label="Map">
+  <button class="sv-btn sv-btn--quiet" type="button" id="map-places" aria-expanded="false" aria-controls="map-list">Places</button>
+  <button class="sv-btn sv-btn--quiet" type="button" id="map-home" data-live>Home</button>
+  <button class="sv-btn sv-btn--quiet" type="button" id="map-world" data-live>World</button>
+  <button class="sv-btn sv-btn--quiet hr-map__zoom" type="button" id="map-in" data-live aria-label="Zoom in">+</button>
+  <button class="sv-btn sv-btn--quiet hr-map__zoom" type="button" id="map-out" data-live aria-label="Zoom out">&minus;</button>
+</nav>
+<div class="hr-map__compass" aria-hidden="true"></div>
+
+<aside class="hr-map__list" id="map-list" aria-label="Our places" hidden>
+  <h2>Our places</h2>
+  <ol id="map-list-items"></ol>
+</aside>
+
+<section class="hr-map__card" id="map-card" aria-live="polite" hidden>
+  <p class="hr-card__date" id="card-date"></p>
+  <h2 id="card-title"></h2>
+  <p class="hr-card__note" id="card-note"></p>
+  <p class="hr-card__example" id="card-example" hidden>An example pin: put your own places in places.json.</p>
+  <div class="hr-card__actions">
+    <button class="sv-btn sv-btn--quiet" type="button" id="card-closer">Closer</button>
+    <button class="sv-btn" type="button" id="card-close">Close</button>
+  </div>
+</section>
+
+<div class="hr-map__fallback" id="map-fallback" hidden>
+  <div class="hr-drawn" id="drawn-stage"><img src="assets/map/world.png" alt="A drawn map of the world" width="512" height="320"></div>
+  <p>The live map can't be reached right now, so here is the drawn one. <a href="">Try again</a></p>
+</div>
+
+<script src="assets/vendor/maplibre/maplibre-gl.js"></script>
+<script src="assets/heroes.js"></script>
+<script src="assets/map.js"></script>
+</body>
+</html>

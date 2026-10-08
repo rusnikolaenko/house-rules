@@ -67,6 +67,7 @@
   }
   .hr-form input:focus { outline: 4px solid var(--focus-ring); outline-offset: 4px; }
   .hr-form .hr-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 4px; }
+  .hr-map-link { text-decoration: none; }
   .hr-error { margin: 0; min-height: 24px; font-size: 16px; line-height: 24px; color: var(--wax-500); font-weight: 600; }
 </style>
 </head>
@@ -257,6 +258,7 @@
               <button class="sv-btn sv-btn--quiet" type="button" id="artifact-open">Artifact</button>
               <button class="sv-btn sv-btn--quiet" type="button" id="ceremony-replay">Replay</button>
               <button class="sv-btn sv-btn--quiet" type="button" id="sound-toggle" role="switch" aria-checked="true">Sound: on</button>
+              <a class="sv-btn sv-btn--quiet hr-map-link" href="map.html">Map</a>
             </div>
           </div>
           <form class="hr-form" id="seal-form" hidden>

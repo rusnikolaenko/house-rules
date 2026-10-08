@@ -1,0 +1,30 @@
+{
+  "home": { "name": "Moscow", "lng": 37.6176, "lat": 55.7558 },
+  "countries": ["RU"],
+  "places": [
+    {
+      "name": "Red Square",
+      "date": "2026-09-17",
+      "note": "The day the rules were enacted.",
+      "lng": 37.6208,
+      "lat": 55.7539,
+      "example": true
+    },
+    {
+      "name": "Gorky Park",
+      "date": "",
+      "note": "A long walk by the river.",
+      "lng": 37.6031,
+      "lat": 55.7298,
+      "example": true
+    },
+    {
+      "name": "Sparrow Hills",
+      "date": "",
+      "note": "The whole city at our feet.",
+      "lng": 37.5531,
+      "lat": 55.7108,
+      "example": true
+    }
+  ]
+}
