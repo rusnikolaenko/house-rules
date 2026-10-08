@@ -271,5 +271,6 @@
   }
   init();
 
-  window.Heroes = { reset: reset, walk: walk, settle: settle, hop: hop };
+  // sprites: the pictures themselves, so scenes.js can cast the same two heroes in its little scenes.
+  window.Heroes = { reset: reset, walk: walk, settle: settle, hop: hop, sprites: HEROES };
 })();

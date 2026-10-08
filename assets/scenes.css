@@ -1,0 +1,85 @@
+/* House Rules: the rules come alive once both seals are set (see scenes.js). */
+
+/* the rules turn into buttons: a play badge on each picture, a lift on hover */
+.hr-scene-hint {
+  margin: 0 0 4px;
+  font-family: var(--font-arcade);
+  font-size: 12px; line-height: 16px;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--wax-500);
+  animation: hr-hint 1.2s steps(2, end) 3;
+}
+@keyframes hr-hint { 0% { opacity: 1; } 100% { opacity: .35; } }
+.sv-rules.is-live .sv-rule { position: relative; cursor: pointer; }
+.sv-rules.is-live .sv-slot { position: relative; transition: transform .12s steps(2, end); }
+.sv-rules.is-live .sv-slot::after {
+  content: "";
+  position: absolute;
+  right: -8px; bottom: -8px;
+  width: 20px; height: 20px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%23f8e7c0' d='M1 0h1v5H1zM2 1h1v3H2zM3 2h1v1H3z'/%3E%3C/svg%3E") center / 12px 12px no-repeat,
+    var(--wax-500);
+  box-shadow: inset 2px 2px 0 0 var(--wax-300), inset -2px -2px 0 0 var(--wax-700), 0 0 0 4px var(--outline);
+  image-rendering: pixelated;
+}
+.sv-rules.is-live .sv-rule:hover .sv-slot,
+.sv-rules.is-live .sv-rule:focus-within .sv-slot { transform: translateY(-4px); }
+.sv-rules.is-live .sv-rule:active .sv-slot { transform: translateY(0); }
+.hr-play {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  margin: 0; padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.hr-play:focus { outline: none; }
+.hr-play:focus-visible { outline: 4px solid var(--focus-ring); outline-offset: 4px; }
+
+/* the window with the scene */
+.hr-scene { width: min(480px, calc(100vw - 32px)); }
+.hr-scene .hr-dialog__frame { gap: 8px; }
+.hr-scene__screen {
+  position: relative;
+  margin: 4px 0 0;
+  padding: 4px;
+  background: var(--outline);
+  box-shadow: 0 0 0 4px var(--wood-500), 4px 4px 0 4px var(--wood-700);
+}
+.hr-scene__screen canvas {
+  display: block;
+  width: 384px; height: 240px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.hr-scene__bar {
+  position: absolute;
+  left: 4px; right: 4px; bottom: 4px;
+  height: 4px;
+  background: var(--gold-200);
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: .8;
+}
+.hr-scene__title { margin: 8px 0 0; font: 700 24px/28px var(--font-pixel); color: var(--ink); text-wrap: balance; }
+.hr-scene__text { margin: 0; font-size: 18px; line-height: 24px; color: var(--ink-soft); text-wrap: pretty; }
+.hr-scene__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
+.hr-scene .hr-scene__actions .sv-btn { min-width: 0; margin: 4px; padding: 8px 12px; font-size: 12px; line-height: 16px; }
+
+@media (max-width: 560px) {
+  .sv-rules.is-live .sv-slot::after { right: -4px; bottom: -6px; width: 16px; height: 16px; background-size: 10px 10px, auto; }
+}
+@media (max-width: 420px) {
+  .hr-scene .hr-dialog__frame { padding: 20px 16px 16px; }
+  .hr-scene__title { font-size: 20px; line-height: 24px; }
+  .hr-scene__text { font-size: 16px; line-height: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hr-scene-hint { animation: none; }
+  .sv-rules.is-live .sv-slot { transition: none; }
+}

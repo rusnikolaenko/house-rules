@@ -131,6 +131,13 @@
     return true;
   }
 
+  /** For scenes.js: the audio context when the sound is on and the browser has let it start, otherwise null. */
+  function audioOut() {
+    if (!soundOn() || !audio) return null;
+    if (audio.state === "suspended") { try { audio.resume(); } catch (e) { /* not yet */ } }
+    return audio.state === "closed" ? null : audio;
+  }
+
   /** A friendly dragon roar for dragon.js: two growly saw waves sliding down, and a rush of breath. level 0..1 = how loud. */
   function roar(level) {
     if (!soundOn() || !audio || audio.state !== "running") return false;
@@ -440,5 +447,5 @@
   }
   init();
 
-  window.Ceremony = { update: update, describe: describe, reignDays: reignDays, fanfare: fanfare, roar: roar, weeks: WEEKS };
+  window.Ceremony = { update: update, describe: describe, reignDays: reignDays, fanfare: fanfare, roar: roar, audioOut: audioOut, weeks: WEEKS };
 })();
