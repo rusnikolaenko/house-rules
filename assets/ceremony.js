@@ -131,13 +131,14 @@
     return true;
   }
 
-  /** A friendly dragon roar for dragon.js: two growly saw waves sliding down, and a rush of breath. */
-  function roar() {
+  /** A friendly dragon roar for dragon.js: two growly saw waves sliding down, and a rush of breath. level 0..1 = how loud. */
+  function roar(level) {
     if (!soundOn() || !audio || audio.state !== "running") return false;
     var t0 = audio.currentTime + 0.02, len = 0.75;
+    var vol = level > 0 ? Math.min(1, level) : 1;      // 1 = close by, less = far away
     var out = audio.createGain();
     out.gain.setValueAtTime(0.0001, t0);
-    out.gain.linearRampToValueAtTime(0.1, t0 + 0.07);
+    out.gain.linearRampToValueAtTime(0.1 * vol, t0 + 0.07);
     out.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
     var tone = audio.createBiquadFilter();
     tone.type = "lowpass";
@@ -173,7 +174,7 @@
     var breath = audio.createBufferSource();
     var breathGain = audio.createGain();
     breath.buffer = buffer;
-    breathGain.gain.value = 0.05;
+    breathGain.gain.value = 0.05 * vol;
     breath.connect(breathGain);
     breathGain.connect(tone);
     breath.start(t0);
@@ -334,6 +335,7 @@
     busyUntil = now + lead + (calm ? 1500 : 3800);
     lsSet(SEEN_KEY, at);
     if (window.Heroes) window.Heroes.reset();        // the heroes wait at the two edges until the pop-up is closed
+    try { document.dispatchEvent(new CustomEvent("ceremony:play")); } catch (e) { /* old browser */ }
     if (window.ScrollToggle && window.ScrollToggle.isRolled()) window.ScrollToggle.unroll();
 
     window.setTimeout(function () {
@@ -378,6 +380,11 @@
    */
   function update(info) {
     current = info;
+    // dragon.js keeps a dragon in the sky for as long as the rules are in force, once the ceremony (if any) is over.
+    var pending = !!(info.inForce && info.at && playedFor !== info.at && (info.live || lsGet(SEEN_KEY) !== info.at));
+    try {
+      document.dispatchEvent(new CustomEvent("rules:state", { detail: { inForce: !!info.inForce, ceremony: pending } }));
+    } catch (e) { /* old browser */ }
     var reign = $("reign");
     if (!reign) return;
     if (!info.inForce || !info.at) {

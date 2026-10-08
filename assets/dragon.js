@@ -1,14 +1,22 @@
-/* House Rules: the little dragon who circles over the two heroes while they walk towards each other.
+/* House Rules: the little dragon of the rules.
  *
  * The dragon is a 26x22 pixel picture, drawn here as rows of letters; every letter is a colour from the
  * palette next to it ("." is empty). Six frames: three wing poses (up, middle, low), each with the mouth
  * closed and with the mouth open. The flame and the shadow are tiny pictures of their own. Like the heroes,
  * they are turned into small SVG strips at load time (no image files).
  *
- * heroes.js sends "heroes:walk" when the heroes set off and "heroes:met" when they meet. The dragon flies in
- * at the first one, circles twice over the stage, breathes fire and roars at the second, and flies away.
- * Click it while it flies: it loops the loop and breathes fire. Dragon.fly() starts a flight by hand, and
- * opening the page with ?dragon in the address does the same. With "reduce motion" on, there is no dragon.
+ * Two lives:
+ *  - near: while the heroes walk towards each other (heroes.js sends "heroes:walk" and "heroes:met") the dragon
+ *    flies in, circles twice over the stage, breathes fire and roars when they meet, and then flies off into
+ *    the distance, getting smaller;
+ *  - far: from then on, for as long as both seals stand, it keeps circling high in the sky behind the scroll
+ *    (a half-size dragon inside the landscape; on a phone, where the scroll hides the sky, it flies in front of the scroll), and now and then puffs a little fire. It is there on every
+ *    visit after the signing, not only after the ceremony. ceremony.js says when the rules are in force
+ *    ("rules:state") and when a ceremony starts ("ceremony:play").
+ *
+ * Click the dragon while it flies near (or tap it where it shows when it is far):
+ * it loops the loop and breathes fire. Dragon.fly() starts the near flight by hand; opening the page with
+ * ?dragon does the same, ?dragon=far goes straight to the far orbit. With "reduce motion" on, there is no dragon.
  */
 (function () {
   "use strict";
@@ -239,7 +247,9 @@
   var ENTRY = 1.8;          // seconds: flying in
   var LOOP = 2.8;           // seconds for one circle
   var LOOPS = 2;
-  var EXIT = 2.0;           // seconds: flying away
+  var EXIT = 2.6;           // seconds: flying off into the distance
+  var NEAR_END = ENTRY + LOOPS * LOOP + EXIT;
+  var FAR_SCALE = 0.5;      // far away it is half the size: 2px art pixels instead of 4px
   var FLAP = [0, 1, 2, 1];  // wing poses in order
   var STEP = 1 / 30;        // retro frame rate
 
@@ -268,13 +278,20 @@
   function reducedMotion() {
     return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }
-  function snap(v) { return Math.round(v / SCALE) * SCALE; }
+  function snap(v, unit) { return Math.round(v / unit) * unit; }
   function bezier(p0, p1, p2, u) {
     var a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c = u * u;
     return { x: a * p0.x + b * p1.x + c * p2.x, y: a * p0.y + b * p1.y + c * p2.y };
   }
+  function cubic(p0, p1, p2, p3, u) {
+    var v = 1 - u, a = v * v * v, b = 3 * v * v * u, c = 3 * v * u * u, d = u * u * u;
+    return { x: a * p0.x + b * p1.x + c * p2.x + d * p3.x, y: a * p0.y + b * p1.y + c * p2.y + d * p3.y };
+  }
 
-  var flight = null;        // the flight in progress, or null
+  var flight = null;        // the dragon, or null: { mode: "near" | "far", ... }
+  var forced = false;       // opened with ?dragon: keep it whatever the rules say
+  var holdFar = false;      // a ceremony is on: no far dragon until the near flight takes over
+  var inForce = false;      // both seals are set
 
   /** The stage must be on screen, or the circle goes over the middle of the window instead. */
   function stageVisible() {
@@ -284,7 +301,7 @@
     return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
   }
 
-  /** Where the circle goes: over the heroes' stage if it was on screen when the flight began, else over the window. */
+  /** Where the near circle goes: over the heroes' stage if it was on screen when the flight began, else over the window. */
   function measure(f) {
     var vw = window.innerWidth, vh = window.innerHeight;
     var rx = Math.max(60, Math.min(130, vw / 2 - 64));
@@ -305,41 +322,63 @@
     return f.anchor;
   }
 
-  function place(f, t) {
-    var vw = window.innerWidth;
-    var m = measure(f);
-    var dir = f.dir;
-    var offX = dir > 0 ? -150 : vw + 150;                 // where it comes in from
-    var p;
-    if (t < ENTRY) {
-      p = bezier({ x: offX, y: m.cy - m.ry - 130 }, { x: m.cx - dir * (m.rx + vw * 0.2), y: m.cy - m.ry },
-        { x: m.cx, y: m.cy - m.ry }, t / ENTRY);
-    } else if (t < ENTRY + LOOPS * LOOP) {
-      var a = -Math.PI / 2 + dir * 2 * Math.PI * (t - ENTRY) / LOOP;
-      p = { x: m.cx + m.rx * Math.cos(a), y: m.cy + m.ry * Math.sin(a) };
-    } else {
-      var u = Math.min(1, (t - ENTRY - LOOPS * LOOP) / EXIT);
-      p = bezier({ x: m.cx, y: m.cy - m.ry }, { x: m.cx + dir * (m.rx + vw * 0.2), y: m.cy - m.ry },
-        { x: vw - offX, y: m.cy - m.ry - 150 }, u);
-    }
-    p.y += 4 * Math.sin(2 * Math.PI * 1.9 * t);           // a little bobbing
-    return { x: p.x, y: p.y, anchor: m };
+  /** The far orbit: a wide, flat loop high in the sky; it passes behind the scroll and comes out at the sides. */
+  function orbit() {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var rx = Math.max(150, vw * 0.44), ry = Math.max(28, vh * 0.07);
+    var circ = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+    var lap = Math.min(40, Math.max(16, circ / 95));        // roughly 95 px per second
+    return { cx: vw / 2, cy: Math.max(110, vh * 0.25), rx: rx, ry: ry, omega: 2 * Math.PI / lap };
   }
 
-  function draw(f, t) {
-    var at = place(f, t);
-    var x = snap(at.x), y = snap(at.y);
+  /** Position (the middle of the body), size and bobbing of the dragon at the time f.t. */
+  function place(f) {
+    var t = f.t, vw = window.innerWidth, dir = f.dir, p, scale = 1, bob = 4, m = null;
+    if (f.mode === "near") {
+      m = measure(f);
+      var offX = dir > 0 ? -150 : vw + 150;                 // where it comes in from
+      if (t < ENTRY) {
+        p = bezier({ x: offX, y: m.cy - m.ry - 130 }, { x: m.cx - dir * (m.rx + vw * 0.2), y: m.cy - m.ry },
+          { x: m.cx, y: m.cy - m.ry }, t / ENTRY);
+      } else if (t < ENTRY + LOOPS * LOOP) {
+        var a = -Math.PI / 2 + dir * 2 * Math.PI * (t - ENTRY) / LOOP;
+        p = { x: m.cx + m.rx * Math.cos(a), y: m.cy + m.ry * Math.sin(a) };
+      } else {
+        // off into the distance: up and out to the edge of the far orbit, shrinking on the way
+        var u = Math.min(1, (t - ENTRY - LOOPS * LOOP) / EXIT);
+        var o = orbit();
+        var from = { x: m.cx, y: m.cy - m.ry }, to = { x: o.cx + dir * o.rx, y: o.cy };
+        var d = Math.max(140, Math.abs(to.x - from.x) * 0.55);
+        p = cubic(from, { x: from.x + dir * d, y: from.y }, { x: to.x, y: to.y - d }, to, u);
+        scale = 1 - (1 - FAR_SCALE) * (u * u * (3 - 2 * u));
+      }
+    } else {
+      var far = orbit();
+      var b = (dir > 0 ? 0 : Math.PI) + dir * far.omega * (t - f.farT0);
+      p = { x: far.cx + far.rx * Math.cos(b), y: far.cy + far.ry * Math.sin(b) };
+      scale = FAR_SCALE;
+      bob = 2;
+    }
+    p.y += bob * Math.sin(2 * Math.PI * 1.9 * t);           // a little bobbing
+    return { x: p.x, y: p.y, scale: scale, anchor: m };
+  }
+
+  function draw(f) {
+    var at = place(f), t = f.t;
+    var unit = SCALE * at.scale;
+    var x = snap(at.x, unit), y = snap(at.y, unit);
     if (f.lastX !== null && x !== f.lastX) f.facing = x > f.lastX ? 1 : -1;
     f.lastX = x;
 
-    var pose = FLAP[Math.floor(t * 7.5) % FLAP.length] + (f.breathing ? 3 : 0);
+    var pose = FLAP[Math.floor(t * (f.mode === "far" ? 5.5 : 7.5)) % FLAP.length] + (f.breathing ? 3 : 0);
     f.body.style.backgroundPositionX = (-pose * BODY_W) + "px";
-    f.root.style.transform = "translate3d(" + (x - CENTER_X) + "px," + (y - CENTER_Y) + "px,0) scaleX(" + f.facing + ")";
+    f.root.style.transform = "translate3d(" + (x - CENTER_X) + "px," + (y - CENTER_Y) + "px,0) scale(" +
+      (f.facing * at.scale) + "," + at.scale + ")";
     if (f.breathing) f.fire.style.backgroundPositionX = (-(Math.floor(t * 10) % 3) * FW * SCALE) + "px";
 
-    // the shadow slides over the ground of the stage, smaller and paler the higher the dragon is
-    var g = at.anchor.ground;
-    if (g && x > g.left + 16 && x < g.right - 16) {
+    // near: the shadow slides over the ground of the stage, smaller and paler the higher the dragon is
+    var g = at.anchor && f.mode === "near" ? at.anchor.ground : null;
+    if (g && at.scale === 1 && x > g.left + 16 && x < g.right - 16) {
       var height = g.y - y;
       var k = height > 160 ? 0.5 : height > 110 ? 0.75 : 1;
       f.shadow.style.opacity = height > 160 ? "0.2" : height > 110 ? "0.28" : "0.38";
@@ -348,50 +387,111 @@
     } else {
       f.shadow.style.display = "none";
     }
+
+    // far away it sometimes breathes a little fire, quietly, just for itself
+    if (f.mode === "far" && !f.breathing && !f.looping && t >= f.nextPuff) {
+      f.nextPuff = t + 24 + Math.random() * 20;
+      breathe(1.1, true);
+    }
   }
 
   function roar() {
-    if (window.Ceremony && window.Ceremony.roar) window.Ceremony.roar();
+    if (window.Ceremony && window.Ceremony.roar) window.Ceremony.roar(flight && flight.mode === "far" ? 0.4 : 1);
   }
 
-  function breathe(seconds) {
-    if (!flight || flight.breathing) return;
-    flight.breathing = true;
-    flight.root.classList.add("is-breathing");
-    roar();
+  function breathe(seconds, silent) {
+    var f = flight;
+    if (!f || f.breathing) return;
+    f.breathing = true;
+    f.root.classList.add("is-breathing");
+    if (!silent) roar();
     window.setTimeout(function () {
-      if (!flight) return;
-      flight.breathing = false;
-      flight.root.classList.remove("is-breathing");
+      f.breathing = false;
+      f.root.classList.remove("is-breathing");
     }, seconds * 1000);
   }
 
   /** A click on the dragon: a loop-the-loop, and then a puff of fire. */
   function tease() {
-    if (!flight || flight.looping || flight.breathing) return;
-    flight.looping = true;
-    flight.root.classList.add("is-looping");
+    var f = flight;
+    if (!f || f.looping || f.breathing) return;
+    f.looping = true;
+    f.root.classList.add("is-looping");
     roar();
     window.setTimeout(function () {
-      if (!flight) return;
-      flight.looping = false;
-      flight.root.classList.remove("is-looping");
-      breathe(1.1);
+      f.looping = false;
+      f.root.classList.remove("is-looping");
+      if (flight === f) breathe(1.1);
     }, 800);
   }
 
-  function finish() {
-    if (!flight) return;
-    if (flight.raf) window.cancelAnimationFrame(flight.raf);
-    [flight.root, flight.shadow].forEach(function (el) { if (el.parentNode) el.parentNode.removeChild(el); });
+  /** Take the dragon off the page. fade: let a far dragon melt into the sky first. */
+  function remove(fade) {
+    var f = flight;
+    if (!f) return;
     flight = null;
+    if (f.raf) window.cancelAnimationFrame(f.raf);
+    function drop() { [f.root, f.shadow].forEach(function (el) { if (el.parentNode) el.parentNode.removeChild(el); }); }
+    if (fade && f.mode === "far") {
+      f.root.classList.add("is-leaving");
+      window.setTimeout(drop, 800);
+    } else {
+      drop();
+    }
   }
 
-  /** Fly in, circle over the heroes, fly away. opts.dir: 1 comes in from the left, -1 from the right. */
-  function fly(opts) {
-    if (flight || reducedMotion()) return false;
-    opts = opts || {};
+  /**
+   * Behind the scroll the far dragon would be hidden almost all the time on a phone, where the scroll nearly fills the
+   * width. So when the strips of sky beside the scroll are narrow, it flies in front of the scroll instead.
+   */
+  function settleFar(f) {
+    var world = $("world"), scroll = $("scroll"), vw = window.innerWidth;
+    var sky = world ? world.getAttribute("data-sky") : null;
+    if (sky) f.root.setAttribute("data-sky", sky);
+    var over = false;
+    if (scroll) {
+      var r = scroll.getBoundingClientRect();
+      over = r.width > 0 && Math.min(r.left, vw - r.right) < 60;
+    }
+    if (!world) over = true;
+    if (f.over === over && f.root.parentNode) return;
+    f.over = over;
+    f.root.classList.toggle("is-over", over);
+    if (over) document.body.appendChild(f.root);
+    else world.insertBefore(f.root, $("world-land"));      // above the clouds, below the hills and trees
+  }
 
+  /** The near dragon is a speck by now: it moves into the sky behind the scroll and goes on circling there. */
+  function becomeFar(f) {
+    f.mode = "far";
+    f.farT0 = f.t;
+    f.nextPuff = f.t + 12 + Math.random() * 12;
+    f.root.classList.add("is-far");
+    f.over = null;
+    settleFar(f);
+    if (f.shadow.parentNode) f.shadow.parentNode.removeChild(f.shadow);
+  }
+
+  function tick(f, now) {
+    if (flight !== f) return;
+    if (f.last === null) f.last = now;
+    var dt = Math.min(0.1, (now - f.last) / 1000);
+    f.last = now;
+    f.acc += dt;
+    f.wall += dt;
+    var moved = false;
+    while (f.acc >= STEP) { f.acc -= STEP; f.t += STEP; moved = true; }
+    if (f.mode === "near" && (f.t >= NEAR_END || f.wall > 40)) {
+      f.t = Math.max(f.t, NEAR_END);
+      becomeFar(f);
+    }
+    if (moved) draw(f);
+    if (f.mode === "far" && now - f.layerCheck > 1000) { f.layerCheck = now; settleFar(f); }
+    f.raf = window.requestAnimationFrame(function (n) { tick(f, n); });
+  }
+
+  /** mode "near": comes in from a side, circles over the heroes. mode "far": appears in the high orbit. */
+  function launch(mode, dir) {
     var root = document.createElement("div");
     root.className = "hr-dragon";
     root.setAttribute("aria-hidden", "true");
@@ -408,48 +508,94 @@
     shadow.setAttribute("aria-hidden", "true");
     shadow.style.backgroundImage = sheetUrl(SHADOW, 16, 4);
 
-    var dir = opts.dir === -1 ? -1 : opts.dir === 1 ? 1 : (Math.random() < 0.5 ? 1 : -1);
-    flight = {
-      root: root, body: body, fire: fire, shadow: shadow, dir: dir, facing: dir, lastX: null,
-      breathing: false, looping: false, raf: 0, onStage: stageVisible(), anchor: null
+    var f = {
+      mode: mode, root: root, body: body, fire: fire, shadow: shadow,
+      dir: dir === -1 ? -1 : dir === 1 ? 1 : (Math.random() < 0.5 ? 1 : -1), facing: 1, lastX: null,
+      breathing: false, looping: false, onStage: stageVisible(), anchor: null,
+      t: 0, acc: 0, last: null, wall: 0, raf: 0, farT0: 0, nextPuff: 0, over: null, layerCheck: 0
     };
+    f.facing = f.dir;
+    flight = f;
     document.body.appendChild(shadow);
-    document.body.appendChild(root);
-    root.addEventListener("click", tease);
-
-    var t = 0, acc = 0, last = null, wall = 0;
-    draw(flight, 0);
-    function tick(now) {
-      if (!flight) return;
-      if (last === null) last = now;
-      var dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      acc += dt;
-      wall += dt;
-      var moved = false;
-      while (acc >= STEP) { acc -= STEP; t += STEP; moved = true; }
-      if (moved) draw(flight, t);
-      if (t >= ENTRY + LOOPS * LOOP + EXIT || wall > 40) finish();
-      else flight.raf = window.requestAnimationFrame(tick);
+    if (mode === "far") {
+      root.classList.add("is-far");
+      root.style.opacity = "0";                         // fades in
+      f.over = null;
+      settleFar(f);
+      f.nextPuff = 10 + Math.random() * 15;
+      draw(f);
+      window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { root.style.opacity = ""; }); });
+    } else {
+      document.body.appendChild(root);
+      draw(f);
     }
-    flight.raf = window.requestAnimationFrame(tick);
+    root.addEventListener("click", tease);
+    f.raf = window.requestAnimationFrame(function (n) { tick(f, n); });
+    return f;
+  }
+
+  /** Fly in, circle over the heroes, then off into the distance. opts.dir: 1 comes in from the left, -1 from the right. */
+  function fly(opts) {
+    if (reducedMotion()) return false;
+    if (flight && flight.mode === "near") return false;
+    if (flight) remove(false);
+    holdFar = false;
+    launch("near", opts && opts.dir);
+    return true;
+  }
+
+  /** Put a dragon in the far orbit, if there is none yet. */
+  function startFar(dir) {
+    if (reducedMotion() || flight) return false;
+    launch("far", dir);
     return true;
   }
 
   document.addEventListener("heroes:walk", function () { fly(); });
   document.addEventListener("heroes:met", function () {
     // The heroes have just met: a roar and a puff of fire from above.
-    if (flight && !flight.breathing) breathe(1.5);
+    if (flight && flight.mode === "near" && !flight.breathing) breathe(1.5);
   });
 
-  if (/[?&]dragon(=|&|$)/.test(window.location.search)) {
-    window.setTimeout(function () { fly(); }, 900);
+  // The rules are in force: a dragon lives in the sky. A ceremony is about to play: it will fly in on its own.
+  document.addEventListener("rules:state", function (e) {
+    inForce = !!(e.detail && e.detail.inForce);
+    if (!inForce) { holdFar = false; if (!forced) remove(true); return; }
+    if (e.detail.ceremony) {                                  // the ceremony is coming: the dragon will fly in during it
+      holdFar = true;
+      if (!forced && flight && flight.mode === "far") remove(true);
+      return;
+    }
+    if (!flight && !holdFar) startFar();
+  });
+  document.addEventListener("ceremony:play", function () {
+    holdFar = true;
+    if (!forced && flight && flight.mode === "far") remove(true);
+  });
+
+  // The far dragon sits behind the scroll and cannot be clicked itself, so watch for clicks on the sky around it.
+  document.addEventListener("click", function (e) {
+    if (!flight || flight.mode !== "far") return;
+    var el = e.target;
+    var skip = flight.over ? "#roll-toggle, #rolled-seal, dialog, button, a, input, label" : "#scroll, #roll-toggle, #rolled-seal, dialog, button, a, input, label";
+    if (el && el.closest && el.closest(skip)) return;
+    var r = flight.root.getBoundingClientRect(), pad = 16;
+    if (e.clientX > r.left - pad && e.clientX < r.right + pad && e.clientY > r.top - pad && e.clientY < r.bottom + pad) tease();
+  });
+
+  var preview = /[?&]dragon(?:=([a-z]*))?(?:&|$)/.exec(window.location.search);
+  if (preview) {
+    forced = true;
+    window.setTimeout(function () { if (preview[1] === "far") startFar(); else fly(); }, 900);
   }
 
   window.Dragon = {
     fly: fly,
+    startFar: startFar,
+    stop: function () { remove(true); },
     breathe: function () { breathe(1.5); },
     tease: tease,
-    flying: function () { return !!flight; }
+    flying: function () { return !!flight; },
+    mode: function () { return flight ? flight.mode : null }
   };
 })();

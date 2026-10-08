@@ -29,6 +29,23 @@
   pointer-events: none;
 }
 .hr-dragon.is-breathing .hr-dragon__fire { display: block; }
+.hr-dragon { transform-origin: 52px 48px; }
+
+/* far away: half the size, in the sky of the landscape (js moves it into #world), tinted by the time of day */
+.hr-dragon.is-far {
+  position: fixed;
+  z-index: auto;
+  opacity: .95;
+  pointer-events: none;
+  transition: opacity 1.6s linear;
+  filter: saturate(.9);
+}
+/* on a phone the scroll covers the sky: then it flies in front of the scroll, a little see-through, under the buttons */
+.hr-dragon.is-far.is-over { z-index: 29; opacity: .88; }
+.hr-dragon.is-far.is-leaving { opacity: 0; transition-duration: .7s; }
+.hr-dragon.is-far[data-sky="dawn"] { filter: brightness(.92) saturate(.9); }
+.hr-dragon.is-far[data-sky="sunset"] { filter: brightness(.86) sepia(.2) saturate(.9); }
+.hr-dragon.is-far[data-sky="night"] { filter: brightness(.55) saturate(.7); }
 
 .hr-dragon.is-looping .hr-dragon__body { animation: hr-dragon-loop .8s steps(8, end) 1; }
 @keyframes hr-dragon-loop { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
