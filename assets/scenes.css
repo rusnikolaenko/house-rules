@@ -71,6 +71,21 @@
 .hr-scene__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
 .hr-scene .hr-scene__actions .sv-btn { min-width: 0; margin: 4px; padding: 8px 12px; font-size: 12px; line-height: 16px; }
 
+/* the wish list: a twinkling star on its button, a link that pops in at the end of the scene */
+.hr-wish-btn { position: relative; padding-left: 36px; }
+.hr-wish-btn::before {
+  content: "";
+  position: absolute;
+  left: 12px; top: 50%;
+  width: 16px; height: 16px;
+  margin-top: -8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%23dca12c' d='M2 0h1v5H2zM0 2h5v1H0z'/%3E%3Cpath fill='%23f6d36b' d='M1 1h3v3H1z'/%3E%3Cpath fill='%23fff4dc' d='M2 2h1v1H2z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  animation: hr-twinkle 1s steps(2, end) infinite;
+}
+.hr-scene .hr-scene__actions .hr-scene__link { text-decoration: none; animation: hr-pop .4s steps(5, end) both; }
+.hr-scene__link:not([href]) { opacity: .55; pointer-events: none; }
+
 @media (max-width: 560px) {
   .sv-rules.is-live .sv-slot::after { right: -4px; bottom: -6px; width: 16px; height: 16px; background-size: 10px 10px, auto; }
 }
@@ -82,4 +97,5 @@
 @media (prefers-reduced-motion: reduce) {
   .hr-scene-hint { animation: none; }
   .sv-rules.is-live .sv-slot { transition: none; }
+  .hr-wish-btn::before, .hr-scene .hr-scene__actions .hr-scene__link { animation: none; }
 }

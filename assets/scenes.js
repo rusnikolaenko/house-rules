@@ -5,6 +5,8 @@
  * The scenes are drawn on a 128x80 canvas, scaled up without smoothing. Every scene is a function of time,
  * draw(t), so a frame can be drawn for any moment (Scenes.frame(n, t) does that, handy for checking a scene).
  * The heroes come from heroes.js, the sound from ceremony.js. Preview without seals: ?scenes, or ?scene=4.
+ * The Wish list button under the seals plays one more scene (SCENES.wish, preview: ?scene=wish): a magic mirror,
+ * a scroll of wishes, and then a link to the real list (the address sits on the button in index.html).
  */
 (function () {
   "use strict";
@@ -406,6 +408,11 @@
     gavel: function (a) { tone(a, "triangle", 420, 160, 0, 0.1, 0.25); hush(a, 0, 0.05, 0.12, "bandpass", 1600); },
     meow: function (a) { tone(a, "sawtooth", 600, 900, 0, 0.12, 0.018); tone(a, "sawtooth", 900, 500, 0.12, 0.2, 0.018); },
     blip: function (a) { tone(a, "square", 1760, 0, 0, 0.04, 0.025); },
+    magic: function (a) { tone(a, "sine", 320, 1900, 0, 0.55, 0.05); tone(a, "triangle", 640, 2600, 0.05, 0.5, 0.025); },
+    shimmer: function (a) {
+      notes(a, [1318.5, 1568, 1975.5, 2349.3, 2637, 3136], "sine", 0.3, 0.025, 0.09);
+      notes(a, [2637, 2349.3, 1975.5, 1568], "sine", 0.3, 0.015, 0.11);
+    },
     whistle: function (a) { notes(a, [1568, 1318.5, 1568, 1760, 1568], "sine", 0.16, 0.05, 0.22); }
   };
   function sfx(name) {
@@ -980,6 +987,120 @@
     }
   };
 
+  // ------------------------------------------------------------ the wish list (the button under the seals)
+  // The princess wakes a magic mirror, WISH LIST appears in the glass, a scroll flies out of it,
+  // she hands it to the knight and it unrolls. Then the window offers the link to the real list.
+  function mix(a, b, p) {
+    a = C[a] || a; b = C[b] || b;
+    var out = [1, 3, 5].map(function (i) {
+      var x = parseInt(a.substr(i, 2), 16), y = parseInt(b.substr(i, 2), 16);
+      return Math.round(x + (y - x) * p);
+    });
+    return "rgb(" + out.join(",") + ")";
+  }
+  function rolledScroll(x, y) {                // 10x6, tied with a red ribbon
+    x = R0(x); y = R0(y);
+    box(x, y, 10, 5, "W", "k");
+    rect(x + 1, y + 1, 8, 1, "w");
+    rect(x, y + 1, 1, 3, "C"); rect(x + 9, y + 1, 1, 3, "C");
+    rect(x + 4, y, 2, 5, "R");
+    px(x + 3, y + 5, "R"); px(x + 6, y + 5, "R");
+  }
+  function openScroll(cx, top, w, h) {         // hanging open between two wooden rods
+    var x = R0(cx - w / 2);
+    box(x, top + 2, w, h, "W", "k");
+    rect(x + 1, top + 3, w - 2, 1, "C");
+    if (h >= 12) textC("WISHES", cx, top + 6, "R");
+    for (var i = 0; i < 3; i++) {
+      var ly = top + 15 + i * 5;
+      if (ly > top + h - 2) break;
+      for (var s = x + 5; s < x + w - (i === 2 ? 16 : 5); s++) if ((s * 7 + i) % 5) px(s, ly + ((s >> 1) % 2), "q");
+    }
+    if (h >= 24) putC("heart", x + w - 8, top + h - 3);
+    [top, top + h + 1].forEach(function (ry) {
+      rect(x - 3, ry, w + 6, 3, "n"); rect(x - 3, ry + 2, w + 6, 1, "m");
+      rect(x - 5, ry, 2, 3, "M"); rect(x + w + 3, ry, 2, 3, "M");
+    });
+  }
+  function magicMirror(t, glow) {
+    var x = 76, y = 9, w = 28, h = 49, gx = x + 3, gy = y + 3, gw = w - 6, gh = h - 6, cx = gx + gw / 2, cy = gy + gh / 2;
+    box(86, 3, 9, 7, "y", "k");                                           // the crest with a heart
+    putC("heart3", 90, 6);
+    box(x, y, w, h, "y", "k");
+    rect(x + 1, y + 1, w - 2, 1, "#fbe7a1"); rect(x + 1, y + h - 2, w - 2, 1, "Y");
+    rect(x + 3, y + h, 3, 3, "Y"); rect(x + w - 6, y + h, 3, 3, "Y");     // feet
+    rect(gx - 1, gy - 1, gw + 2, gh + 2, "o");
+    rect(gx, gy, gw, gh, mix("N", "#6fb3c9", glow));
+    g.save(); g.beginPath(); g.rect(gx, gy, gw, gh); g.clip();
+    alpha(0.45, function () {                                             // the glass shines
+      line(gx + 3, gy + gh - 4, gx + gw - 4, gy + 3, "b");
+      line(gx + 7, gy + gh - 2, gx + gw - 2, gy + 7, "b");
+    });
+    if (on(t, 1.8, 3.6)) for (var k = 0; k < 3; k++) {                   // ripples
+      var r = ((t - 1.8) * 18 + k * 7) % 21;
+      alpha(1 - r / 21, function () { ring(R0(cx), R0(cy), R0(r), "w"); });
+    }
+    if (t >= 2.6) alpha(P(t, 2.6, 3.0), function () {
+      textC("WISH", R0(cx), gy + 9, blink(t, 3) ? "w" : "y");
+      textC("LIST", R0(cx), gy + 16, blink(t, 3) ? "w" : "y");
+      if (t < 3.4) {                                                      // the scroll waiting in the glass
+        rolledScroll(cx - 5, gy + 26);
+      }
+    });
+    g.restore();
+    if (t >= 1.8) for (var i = 0; i < 6; i++) {                           // sparks around the frame
+      if ((Math.floor(t * 6) + i) % 3) continue;
+      var a = i / 6 * Math.PI * 2;
+      putC("spark", R0(x + w / 2 + Math.cos(a) * 18), R0(y + h / 2 + Math.sin(a) * 28));
+    }
+  }
+  SCENES.wish = {
+    dur: 7.4, link: true, kicker: "Wish list", title: "A scroll of wishes", text: "Straight from the magic mirror.",
+    label: "A little scene: the princess wakes a magic mirror and hands the knight a scroll of wishes.",
+    sfx: [[0.3, "step"], [0.6, "step"], [0.9, "step"], [1.2, "step"], [1.45, "magic"], [1.9, "shimmer"], [2.6, "chime"],
+      [3.4, "pop"], [3.45, "whoosh"], [4.3, "step"], [4.6, "step"], [4.9, "step"], [5.2, "yes"], [5.45, "whoosh"], [5.75, "swish"],
+      [6.3, "fanfare"]],
+    draw: function (t) {
+      room({ wall: "v", dot: "V", floor: "M", seam: "z", board: "z" });
+      var fl = Math.floor(t * 8) % 2;
+      [66, 116].forEach(function (sx) {                                    // candles on the wall
+        alpha(0.12, function () { disc(sx, 18, 6 + fl, "y"); });
+        rect(sx - 4, 25, 9, 2, "m");
+        rect(sx - 1, 19, 3, 6, "w");
+        rect(sx, 15 + fl, 1, 3 - fl, "y"); px(sx, 17, "r");
+      });
+      rect(70, 62, 40, 6, "D"); rect(72, 63, 36, 4, "R");                   // a rug under the mirror
+      var glow = t < 1.8 ? 0 : t < 2.4 ? E(P(t, 1.8, 2.4)) : t < 3.6 ? 1 : 1 - 0.5 * E(P(t, 3.6, 4.4));
+      magicMirror(t, glow);
+      // the princess walks up to the mirror, then over to the knight
+      var hx = t < 4.2 ? L(24, 54, E(P(t, 0.2, 1.3))) : L(54, 28, E(P(t, 4.2, 5.0)));
+      var walking = on(t, 0.2, 1.3) || on(t, 4.2, 5.0);
+      var hop = t > 6.3 && blink(t, 5) ? -1 : 0;
+      hero("him", 8, 48 + hop);
+      hero("her", hx, 48 + hop, { frame: walking ? walkFrame(t) : 0 });
+      if (on(t, 1.4, 2.1)) for (var i = 0; i < 6; i++) {                   // her magic flies to the glass
+        var p = P(t, 1.4 + i * 0.06, 1.8 + i * 0.06);
+        if (p <= 0 || p >= 1) continue;
+        putC(i % 2 ? "spark" : "star", L(hx + 12, 90, p), L(56, 33, p) - Math.sin(p * Math.PI) * 10);
+      }
+      // the scroll: out of the mirror, into her hands, into his, then open above them
+      if (t >= 3.4 && t < 5.4) {
+        var sx, sy;
+        if (t < 4.1) { var q = E(P(t, 3.4, 4.1)); sx = L(85, hx + 3, q); sy = L(38, 58, q) - Math.sin(q * Math.PI) * 14; }
+        else if (t < 5.0) { sx = hx + 3; sy = 58; }
+        else { var q2 = E(P(t, 5.0, 5.4)); sx = L(hx + 3, 14, q2); sy = 58; }
+        rolledScroll(sx, sy);
+      } else if (t >= 5.4) {
+        var up = E(P(t, 5.4, 5.75)), open = E(P(t, 5.75, 6.3));
+        if (open <= 0) rolledScroll(L(14, 31, up), L(58, 8, up));
+        else openScroll(36, 6, L(10, 46, open), Math.round(L(3, 27, open)));
+      }
+      burst(t, 5.2, 24, 50, 8, { art: ["heart5", "heart3"], dist: 14 });
+      burst(t, 6.3, 36, 20, 12, { art: ["star", "spark", "heart5"], dist: 30 });
+      rise(t, 6.35, 16, 52, 5, { gap: 0.2, life: 0.7, speed: 16 });
+    }
+  };
+
   // ------------------------------------------------------------ the window that plays them
   function $(id) { return document.getElementById(id); }
   function reducedMotion() {
@@ -1025,6 +1146,7 @@
       '<h2 class="hr-scene__title" id="scene-title"></h2>' +
       '<p class="hr-scene__text" id="scene-text"></p>' +
       '<div class="hr-scene__actions">' +
+      '<a class="sv-btn hr-scene__link" id="scene-link" href="#" target="_blank" rel="noopener" hidden>Open the wish list</a>' +
       '<button class="sv-btn sv-btn--quiet" type="button" id="scene-again">Again</button>' +
       '<button class="sv-btn sv-btn--quiet" type="button" id="scene-next">Next</button>' +
       '<button class="sv-btn" value="close" id="scene-close">Close</button>' +
@@ -1032,7 +1154,7 @@
     document.body.appendChild(dialog);
     screen = $("scene-canvas");
     $("scene-again").addEventListener("click", function () { play(current); });
-    $("scene-next").addEventListener("click", function () { play(current % 15 + 1); });
+    $("scene-next").addEventListener("click", function () { if (typeof current === "number") play(current % 15 + 1); });
     dialog.addEventListener("click", function (e) { if (e.target === dialog) dialog.close(); });
     dialog.addEventListener("close", function () {
       stop();
@@ -1077,22 +1199,47 @@
     if (t < sc.dur) { raf = window.requestAnimationFrame(tick); return; }
     raf = 0;
     frame(current, sc.dur);
+    finish(sc);
+  }
+
+  /** The end of a scene: rules close by themselves after a moment, the wish list shows its link and waits. */
+  function finish(sc) {
+    if (sc.link) {
+      var a = $("scene-link");
+      a.hidden = false;
+      try { a.focus({ preventScroll: true }); } catch (e) { /* old browser */ }
+      return;
+    }
     closer = window.setTimeout(function () { if (dialog.open) dialog.close(); }, HOLD * 1000);
   }
 
-  /** Open the window (if it isn't open) and play rule n's scene from the start. */
+  function wishlistUrl() {
+    var b = $("wish-open");
+    var u = b && b.getAttribute("data-wishlist");
+    return u && /^https:\/\//.test(u) ? u : "";
+  }
+
+  /** Open the window (if it isn't open) and play a scene from the start: a rule's number, or "wish". */
   function play(n) {
-    n = +n;
+    n = /^\d+$/.test(String(n)) ? +n : n;
     if (!SCENES[n]) return;
     build();
     stop();
     current = n;
-    var info = ruleInfo(n);
-    $("scene-kicker").textContent = "Rule #" + n;
+    var sc0 = SCENES[n];
+    var info = sc0.title ? { lead: sc0.title, text: sc0.text || "" } : ruleInfo(n);
+    $("scene-kicker").textContent = sc0.kicker || "Rule #" + n;
     $("scene-title").textContent = info.lead;
     $("scene-text").textContent = info.text;
     $("scene-text").hidden = !info.text;
-    screen.setAttribute("aria-label", "A little scene: the knight and the princess act out rule " + n + ".");
+    $("scene-next").hidden = !!sc0.link;
+    var link = $("scene-link");
+    link.hidden = true;
+    if (sc0.link) {
+      var url = wishlistUrl();
+      if (url) link.href = url; else link.removeAttribute("href");
+    }
+    screen.setAttribute("aria-label", sc0.label || "A little scene: the knight and the princess act out rule " + n + ".");
     if (!dialog.open) {
       opener = document.activeElement;
       fit();
@@ -1103,6 +1250,7 @@
     if (reducedMotion()) {                           // no motion: show how it ends, and stay until closed
       frame(n, sc.dur);
       $("scene-bar").style.transform = "scaleX(1)";
+      if (sc.link) $("scene-link").hidden = false;
       return;
     }
     start = performance.now();
@@ -1151,11 +1299,13 @@
 
   function init() {
     var q = window.location.search || "";
-    var m = q.match(/[?&]scene=(\d+)/);
+    var m = q.match(/[?&]scene=(\d+|wish)\b/);
     forced = /[?&]scenes?\b/.test(q);
     var st = $("status");
     setLive(st && st.getAttribute("data-in-force") === "true");
-    if (m) window.setTimeout(function () { play(+m[1]); }, 400);
+    if (m) window.setTimeout(function () { play(m[1]); }, 400);
+    var wish = $("wish-open");
+    if (wish) wish.addEventListener("click", function () { play("wish"); });
   }
   init();
 
@@ -1164,7 +1314,7 @@
     close: close,
     frame: function (n, t, ctx) { if (ctx) frame(n, t, ctx); else { build(); frame(n, t); } },
     duration: function (n) { return SCENES[n] ? SCENES[n].dur : 0; },
-    count: function () { return Object.keys(SCENES).length; },
+    count: function () { return Object.keys(SCENES).filter(function (k) { return /^\d+$/.test(k); }).length; },
     live: function () { return live; },
     size: { w: W, h: H }
   };
